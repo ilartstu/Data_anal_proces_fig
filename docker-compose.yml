@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      - DATA_DIR=/data/uploads
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      - "8000:8000"        # FastAPI + interactive docs at /docs (optional)
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"          # open http://localhost:8080
+    restart: unless-stopped
+
+volumes:
+  uploads:
