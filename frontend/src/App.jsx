@@ -243,21 +243,29 @@ export default function App() {
   const updateSource = (idx, patch) =>
     setSources((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
 
+  // Column names of a source, read from its header row in the raw preview
+  // (mirrors backend _normalize_names: blanks → col_N). Used to let the user
+  // manually pick each file's time column before combining.
+  const sourceColumns = (s) => {
+    const row = s?.preview?.rows?.[s?.headerRow ?? 0] || [];
+    return row.map((c, i) => (String(c).trim() || `col_${i}`));
+  };
+
   // -------- Sheet change for a source --------
   const onSourceSheet = async (idx, s) => {
     updateSource(idx, { sheet: s });
     try {
       const pv = await api.previewSheet({ id: sources[idx].id, sheet: s });
-      updateSource(idx, { sheet: s, preview: pv, headerRow: pv.suggested_header ?? 0 });
+      updateSource(idx, { sheet: s, preview: pv, headerRow: pv.suggested_header ?? 0, xCol: null });
     } catch (e) { setError(String(e.message || e)); }
   };
   // Header-row / sheet handlers for the currently-configured file.
-  const onHeaderPick = (row) => updateSource(configFileIdx, { headerRow: row });
+  const onHeaderPick = (row) => updateSource(configFileIdx, { headerRow: row, xCol: null });
   const onSheet = (s) => onSourceSheet(configFileIdx, s);
 
   // -------- Resolve the active dataset from the source files --------
   const sourceSig = JSON.stringify(
-    sources.map((s) => ({ id: s.id, sheet: s.sheet, headerRow: s.headerRow, label: s.label })));
+    sources.map((s) => ({ id: s.id, sheet: s.sheet, headerRow: s.headerRow, label: s.label, xCol: s.xCol || null })));
   useEffect(() => {
     if (sources.length === 0) { setUpload(null); setCombinedId(null); return; }
     if (sources.length === 1) {
@@ -276,6 +284,7 @@ export default function App() {
         const res = await api.combine({
           sources: sources.map((s) => ({
             id: s.id, sheet: s.sheet, header_row: s.headerRow, label: s.label,
+            x_col: s.xCol || null,
           })),
         });
         setCombinedId(res.id);
@@ -582,6 +591,15 @@ export default function App() {
   const onToggle = (name) => setStyles((prev) => ({
     ...prev, [name]: { ...(prev[name] || defaultStyle(0)), enabled: !prev[name]?.enabled },
   }));
+  // Select / deselect every parameter at once (skips the X column and dropped).
+  const onToggleAll = (enable) => setStyles((prev) => {
+    const next = { ...prev };
+    orderedCols.forEach((name) => {
+      if (name === xCol || dropColumns.includes(name)) return;
+      next[name] = { ...(prev[name] || defaultStyle(0)), enabled: enable };
+    });
+    return next;
+  });
   const onStyleChange = (name, patch) => setStyles((prev) => ({
     ...prev, [name]: { ...(prev[name] || defaultStyle(0)), ...patch },
   }));
@@ -792,6 +810,24 @@ export default function App() {
           </div>
         )}
 
+        {sources.length > 1 && sources[configFileIdx] && (
+          <label className="field" style={{ margin: "10px 0 0" }}>
+            <span>Столбец времени для «{sources[configFileIdx].label}»</span>
+            <select
+              value={sources[configFileIdx].xCol || ""}
+              onChange={(e) => updateSource(configFileIdx, { xCol: e.target.value || null })}>
+              <option value="">Авто (определить самому)</option>
+              {sourceColumns(sources[configFileIdx]).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <span className="small muted" style={{ marginTop: 4 }}>
+              По этому столбцу файл встаёт на общую ось времени. Если объединение
+              даёт сплошь NaN — выберите правильный столбец вручную.
+            </span>
+          </label>
+        )}
+
         {sources[configFileIdx]?.preview && (
           <HeaderPicker
             preview={sources[configFileIdx].preview}
@@ -809,7 +845,7 @@ export default function App() {
           <>
             <ColumnConfig
               columns={inspectData.columns} order={order} xCol={xCol} onXCol={setXCol}
-              styles={styles} onToggle={onToggle} onStyleChange={onStyleChange}
+              styles={styles} onToggle={onToggle} onToggleAll={onToggleAll} onStyleChange={onStyleChange}
               onAutoAxes={onAutoAxes} axisCount={axisCount} onAxisCount={setAxisCount}
               onMove={moveCol} onReorder={reorderCol}
               alignZero={flags.alignZero} onAlignZero={(v) => setFlags((f) => ({ ...f, alignZero: v }))}

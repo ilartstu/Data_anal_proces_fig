@@ -127,7 +127,6 @@ def inspect(req: InspectRequest) -> dict:
     dropped = set(req.edits.drop_columns) if req.edits else set()
     rev = {n: o for o, n in (req.edits.renames or {}).items()} if req.edits else {}
     columns = []
-    suggested_x = None
     for col in df.columns:
         s = df[col]
         stats = analysis.column_stats(s)
@@ -139,11 +138,13 @@ def inspect(req: InspectRequest) -> dict:
         base = rev.get(col, col)
         is_unnamed = base.startswith("Unnamed") or base.startswith("col_")
         stats["auto_empty"] = bool(is_unnamed and stats["nan_count"] == stats["n"])
-        if suggested_x is None and is_time and col not in dropped:
-            suggested_x = col
         columns.append(stats)
-    if suggested_x is None and len(df.columns):
-        suggested_x = str(df.columns[0])
+    # Pick the X axis among non-dropped columns, scoring by name/range/uniqueness
+    # (not just the first time-looking column — a constant `YEAR` looks like a
+    # date but collapses every row to one timestamp).
+    keep = [c for c in df.columns if c not in dropped]
+    suggested_x = _detect_time_col(df[keep]) if keep else (
+        str(df.columns[0]) if len(df.columns) else None)
     try:
         # Base (pre-rename) column names aligned to positions — from the cache.
         resolved = list(_parse_cached(_get(req.id), req.sheet, req.header_row, req.skip_after).columns)
@@ -197,14 +198,30 @@ def combine(req: CombineRequest) -> dict:
             "nrows": int(len(combined)), "time_col": req.time_label}
 
 
+_TIME_NAME_HINTS = ("datetime", "timestamp", "date", "time", "время", "дата", "момент")
+
+
 def _detect_time_col(df) -> str:
+    """Pick the real timestamp column. Prefers a time-named column and one that
+    spans a real range — avoids false positives like a constant `YEAR` column
+    (all 2023 → parses to a single date) stealing the role."""
+    best = None  # (score, n_unique, col)
     for c in df.columns:
         try:
-            if _looks_like_time(df[c]):
-                return c
+            if not _looks_like_time(df[c]):
+                continue
+            parsed = pd.to_datetime(df[c].dropna().astype(str).head(500),
+                                    errors="coerce", format="mixed")
+            p = parsed.dropna()
+            nun = int(p.nunique())
+            name_hit = any(h in str(c).lower() for h in _TIME_NAME_HINTS)
+            span_ok = bool(len(p) > 1 and (p.max() - p.min()).total_seconds() > 3600)
+            score = (2 if name_hit else 0) + (1 if span_ok else 0)
+            if best is None or (score, nun) > (best[0], best[1]):
+                best = (score, nun, c)
         except Exception:  # noqa: BLE001
             continue
-    return str(df.columns[0])
+    return best[2] if best else str(df.columns[0])
 
 
 # --------------------------------------------------------------------------- #

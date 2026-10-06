@@ -23,7 +23,7 @@ function Badges({ c }) {
 }
 
 export default function ColumnConfig({
-  columns, order, xCol, onXCol, styles, onToggle, onStyleChange,
+  columns, order, xCol, onXCol, styles, onToggle, onToggleAll, onStyleChange,
   onAutoAxes, axisCount, onAxisCount, onMove, onReorder,
   alignZero, onAlignZero, dropColumns, onDropColumn, onRename,
 }) {
@@ -35,6 +35,9 @@ export default function ColumnConfig({
   const byName = Object.fromEntries(columns.map((c) => [c.name, c]));
   const list = order.filter((n) => byName[n] && n !== xCol);
   const enabledCount = list.filter((n) => styles[n]?.enabled).length;
+  const toggleable = list.filter((n) => !dropped.has(n));
+  const allOn = toggleable.length > 0 && toggleable.every((n) => styles[n]?.enabled);
+  const someOn = toggleable.some((n) => styles[n]?.enabled);
   const axisOptions = Array.from({ length: Math.max(1, axisCount) }, (_, i) => i + 1);
 
   return (
@@ -51,7 +54,14 @@ export default function ColumnConfig({
       </label>
 
       <div className="inline" style={{ justifyContent: "space-between", margin: "4px 0 8px", flexWrap: "wrap", gap: 6 }}>
-        <span className="small muted">Колонки (перетащите / ▲▼ — порядок наложения):</span>
+        <label className="inline small" style={{ gap: 6, cursor: "pointer" }}
+          title={allOn ? "Снять все" : "Выделить все"}>
+          <input type="checkbox"
+            ref={(el) => { if (el) el.indeterminate = someOn && !allOn; }}
+            checked={allOn} disabled={toggleable.length === 0}
+            onChange={(e) => onToggleAll && onToggleAll(e.target.checked)} />
+          <span className="small muted">все колонки</span>
+        </label>
         <div className="inline" style={{ gap: 8 }}>
           <label className="inline small" title="Число осей Y">
             осей
@@ -65,6 +75,9 @@ export default function ColumnConfig({
             </button>
           )}
         </div>
+      </div>
+      <div className="small muted" style={{ margin: "-4px 0 8px" }}>
+        Перетащите / ▲▼ — порядок наложения
       </div>
 
       {axisCount > 1 && (

@@ -12,3 +12,4 @@ frontend/.vite/
 # OS
 .DS_Store
 *.log
+Data/solar_dataset_full_exp.csv
