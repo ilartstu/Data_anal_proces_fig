@@ -32,8 +32,11 @@ function linreg(xs, ys) {
 
 export default function CorrelationView({
   corr, seriesData, styles, pairX, pairY, onPairX, onPairY, columns,
-  corrTarget, onCorrTarget, onGraphDiv,
+  corrTarget, onCorrTarget, registerChart,
 }) {
+  // Each Plotly chart registers itself under a label so the export dialog can
+  // list them all. No-op fallback keeps the view usable without the registry.
+  const reg = (label) => (registerChart ? registerChart(label) : () => {});
   const [pairMode, setPairMode] = React.useState("scatter");
   const [showSplom, setShowSplom] = React.useState(false);
 
@@ -145,8 +148,8 @@ export default function CorrelationView({
       <div className="section-title">Матрица корреляций ({corr.method})</div>
       <div className="card" style={{ marginBottom: 16 }}>
         <Plot data={heat.traces} layout={heat.layout} style={{ width: "100%" }}
-          useResizeHandler onInitialized={(_f, gd) => onGraphDiv?.(gd)}
-          onUpdate={(_f, gd) => onGraphDiv?.(gd)}
+          useResizeHandler onInitialized={(_f, gd) => reg("Матрица корреляций")(gd)}
+          onUpdate={(_f, gd) => reg("Матрица корреляций")(gd)}
           config={{ responsive: true, displaylogo: false,
             toImageButtonOptions: { format: "png", filename: "correlation", scale: 2 },
             modeBarButtonsToRemove: ["lasso2d", "select2d", "zoom2d", "pan2d"] }} />
@@ -214,6 +217,8 @@ export default function CorrelationView({
         ) : scatter ? (
           <Plot data={scatter.traces} layout={scatter.layout} style={{ width: "100%" }}
             useResizeHandler
+            onInitialized={(_f, gd) => reg("Зависимость X×Y")(gd)}
+            onUpdate={(_f, gd) => reg("Зависимость X×Y")(gd)}
             config={{ responsive: true, displaylogo: false,
               modeBarButtonsToRemove: ["lasso2d", "select2d"] }} />
         ) : (
@@ -233,7 +238,10 @@ export default function CorrelationView({
               <button className="ghost small" onClick={() => setShowSplom(false)}>Скрыть</button>
             </div>
             <Plot data={splom.traces} layout={splom.layout} style={{ width: "100%" }}
-              useResizeHandler config={{ responsive: true, displaylogo: false }} />
+              useResizeHandler
+              onInitialized={(_f, gd) => reg("Матрица рассеяния (SPLOM)")(gd)}
+              onUpdate={(_f, gd) => reg("Матрица рассеяния (SPLOM)")(gd)}
+              config={{ responsive: true, displaylogo: false }} />
           </>
         ) : null}
       </div>

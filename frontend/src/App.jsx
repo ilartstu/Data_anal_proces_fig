@@ -18,7 +18,10 @@ import BlocksView from "./components/BlocksView";
 import OutliersView from "./components/OutliersView";
 import TableView from "./components/TableView";
 import ExportBar from "./components/ExportBar";
+import ExportDialog from "./components/ExportDialog";
+import WindowControls from "./components/WindowControls";
 import Annotations from "./components/Annotations";
+import { downloadChartImage } from "./lib/exportImage";
 
 function defaultStyle(i) {
   return { enabled: false, color: PALETTE[i % PALETTE.length], type: "line",
@@ -53,6 +56,11 @@ export default function App() {
   const [seriesBusy, setSeriesBusy] = useState(false);
   const [annotations, setAnnotations] = useState([]);
   const [busyExport, setBusyExport] = useState(false);
+  // Time window: show only part of the series (last/first N days or points).
+  const [timeWindow, setTimeWindow] = useState(
+    { enabled: false, unit: "days", count: 14, anchor: "end", date: "" });
+  const [exportOpen, setExportOpen] = useState(false);   // image-export dialog
+  const [exportCharts, setExportCharts] = useState([]);  // charts offered in it
 
   // View mode + per-mode state.
   const [viewMode, setViewMode] = useState("timeseries");
@@ -113,6 +121,21 @@ export default function App() {
   const [tableBusy, setTableBusy] = useState(false);
 
   const gdRef = useRef(null);
+  // Registry of mounted Plotly charts by label, so the export dialog can offer
+  // every chart currently on screen (e.g. the correlation view has several).
+  const chartsRef = useRef(new Map());
+  const registerChart = useCallback((label) => (gd) => {
+    if (!gd) return;
+    gdRef.current = gd;
+    chartsRef.current.set(label, gd);
+  }, []);
+  const collectCharts = () => {
+    const out = [];
+    for (const [label, gd] of chartsRef.current.entries()) {
+      if (gd && document.body.contains(gd) && gd.offsetParent !== null) out.push({ label, gd });
+    }
+    return out;
+  };
   const seriesReq = useRef(0);
   const corrReq = useRef(0);
   const blocksReq = useRef(0);
@@ -375,7 +398,7 @@ export default function App() {
           id: upload.id, sheet, header_row: headerRow, edits: editsPayload,
           x_col: xCol, y_cols: enabledCols,
           resample: { rule: resample.rule || null, agg: resample.agg },
-          anomaly, detect_zeros: true, sort_x: sortX,
+          anomaly, detect_zeros: true, sort_x: sortX, window: timeWindow,
         });
         if (reqId === seriesReq.current) setSeriesData(res);
       } catch (e) {
@@ -386,7 +409,7 @@ export default function App() {
     }, 220);
     return () => clearTimeout(debounceTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [upload, sheet, headerRow, xCol, yKey, JSON.stringify(resample), JSON.stringify(anomaly), editsKey, sortX, manualMode, computeToken]);
+  }, [upload, sheet, headerRow, xCol, yKey, JSON.stringify(resample), JSON.stringify(anomaly), editsKey, sortX, JSON.stringify(timeWindow), manualMode, computeToken]);
 
   // -------- Correlation fetch (only in correlation mode) --------
   useEffect(() => {
@@ -694,20 +717,35 @@ export default function App() {
     return add.length ? [...prev, ...add] : prev;
   });
 
-  const onChartImage = (fmt) => {
-    const gd = gdRef.current;
+  const openImageDialog = () => { setExportCharts(collectCharts()); setExportOpen(true); };
+
+  const onChartHtml = () => {
+    const gd = collectCharts()[0]?.gd || gdRef.current;
     if (!gd) return;
-    if (fmt === "html") {
-      const fig = { data: gd.data, layout: gd.layout };
-      const html = `<!doctype html><html><head><meta charset="utf-8"/>` +
-        `<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script></head>` +
-        `<body style="margin:0"><div id="fig" style="width:100vw;height:100vh"></div>` +
-        `<script>Plotly.newPlot('fig',${JSON.stringify(fig.data)},` +
-        `${JSON.stringify(fig.layout)},{responsive:true});</script></body></html>`;
-      downloadBlob(new Blob([html], { type: "text/html" }), "figure.html");
-    } else {
-      Plotly.downloadImage(gd, { format: fmt, filename: "figure", scale: 2,
-        width: gd._fullLayout?.width, height: gd._fullLayout?.height });
+    const fig = { data: gd.data, layout: gd.layout };
+    const html = `<!doctype html><html><head><meta charset="utf-8"/>` +
+      `<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script></head>` +
+      `<body style="margin:0"><div id="fig" style="width:100vw;height:100vh"></div>` +
+      `<script>Plotly.newPlot('fig',${JSON.stringify(fig.data)},` +
+      `${JSON.stringify(fig.layout)},{responsive:true});</script></body></html>`;
+    downloadBlob(new Blob([html], { type: "text/html" }), "figure.html");
+  };
+
+  // Export one or several charts with the settings chosen in the dialog.
+  const onExportCharts = async (plan) => {
+    const items = plan.items || [];
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        await downloadChartImage(Plotly, it.gd, {
+          format: plan.format, width: it.width, height: it.height,
+          dpi: plan.dpi, bg: plan.bg, quality: plan.quality,
+          filename: sanitizeName(it.label),
+        });
+        if (i < items.length - 1) await new Promise((r) => setTimeout(r, 350));
+      }
+    } catch (e) {
+      setError("Не удалось сохранить изображение: " + String(e?.message || e));
     }
   };
 
@@ -720,7 +758,7 @@ export default function App() {
       resample, anomaly, anomaly_style: anomalyStyle, rolling, flags, annotations,
       view_mode: viewMode, dist_type: distType, corr_method: corrMethod,
       drop_columns: dropColumns, drop_rows: dropRows, renames,
-      deletions, interpolate: interp, sort_x: sortX,
+      deletions, interpolate: interp, sort_x: sortX, time_window: timeWindow,
     };
     downloadBlob(new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" }),
       "figures-preset.json");
@@ -753,6 +791,7 @@ export default function App() {
       if (Array.isArray(p.deletions)) setDeletions(p.deletions);
       if (p.interpolate && typeof p.interpolate === "object") setInterp(p.interpolate);
       if (typeof p.sort_x === "boolean") setSortX(p.sort_x);
+      if (p.time_window && typeof p.time_window === "object") setTimeWindow(p.time_window);
       if (Array.isArray(p.annotations)) setAnnotations(p.annotations);
       setError(null);
     } catch (e) { setError("Ошибка пресета: " + String(e.message || e)); }
@@ -889,7 +928,8 @@ export default function App() {
         {inspectData && (
           <>
             <ExportBar
-              onExportData={onExportData} onChartImage={onChartImage}
+              onExportData={onExportData}
+              onOpenImageDialog={openImageDialog} onChartHtml={onChartHtml}
               onSavePreset={onSavePreset} onLoadPreset={onLoadPreset}
               busyExport={busyExport} disabled={!seriesData}
             />
@@ -923,13 +963,17 @@ export default function App() {
 
             {viewMode === "timeseries" && (seriesData ? (
               <>
+                <WindowControls
+                  win={timeWindow} onChange={setTimeWindow}
+                  hasTime={!!seriesData.x_is_time} info={seriesData.window}
+                />
                 <div className="card" style={{ marginBottom: 16 }}>
                   <Chart
                     key={`ts-${refreshKey}-${axisSig}`}
                     data={seriesData} styles={styles} flags={flags}
                     anomalyStyle={anomalyStyle} rolling={rolling}
                     annotations={annotations} onAddAnnotation={addAnnotation}
-                    onGraphDiv={(gd) => { gdRef.current = gd; }}
+                    onGraphDiv={registerChart("Временной ряд")}
                   />
                 </div>
                 <div className="section">
@@ -972,7 +1016,7 @@ export default function App() {
                   <DistributionChart
                     key={`dist-${refreshKey}`}
                     data={seriesData} styles={styles} distType={distType} bins={bins}
-                    onGraphDiv={(gd) => { gdRef.current = gd; }}
+                    onGraphDiv={registerChart("Распределение")}
                   />
                 </div>
                 <div className="section">
@@ -1001,7 +1045,7 @@ export default function App() {
                   columns={enabledCols}
                   pairX={pairX} pairY={pairY} onPairX={setPairX} onPairY={setPairY}
                   corrTarget={corrTarget} onCorrTarget={setCorrTarget}
-                  onGraphDiv={(gd) => { gdRef.current = gd; }}
+                  registerChart={registerChart}
                 />
               </>
             )}
@@ -1028,7 +1072,7 @@ export default function App() {
                 </div>
                 <div className="card">
                   <SpectrumView key={`spec-${refreshKey}`} spectrum={spectrumData} styles={styles}
-                    onGraphDiv={(gd) => { gdRef.current = gd; }} />
+                    onGraphDiv={registerChart("Спектр · ACF")} />
                 </div>
               </>
             ) : <EnableHint />)}
@@ -1039,7 +1083,7 @@ export default function App() {
                 seriesData={seriesData} styles={styles} columns={enabledCols}
                 dirCol={windDir} magCol={windMag}
                 onDirCol={setWindDir} onMagCol={setWindMag}
-                onGraphDiv={(gd) => { gdRef.current = gd; }}
+                onGraphDiv={registerChart("Роза ветров")}
               />
             ) : <EnableHint />)}
 
@@ -1056,7 +1100,7 @@ export default function App() {
                   {missingBusy && <span className="spinner" />}
                 </div>
                 <MissingMapView key={`miss-${refreshKey}`} missing={missingData}
-                  onGraphDiv={(gd) => { gdRef.current = gd; }} />
+                  onGraphDiv={registerChart("Карта пропусков")} />
               </>
             )}
 
@@ -1113,6 +1157,13 @@ export default function App() {
           </>
         )}
       </main>
+
+      <ExportDialog
+        open={exportOpen}
+        charts={exportCharts}
+        onClose={() => setExportOpen(false)}
+        onExport={onExportCharts}
+      />
     </div>
   );
 }
@@ -1124,6 +1175,11 @@ function EnableHint() {
       <div>Отметьте хотя бы одну колонку слева (раздел «Ось X и колонки»).</div>
     </div>
   );
+}
+
+function sanitizeName(label) {
+  const s = String(label || "figure").replace(/[\\/:*?"<>|·]+/g, " ").trim().replace(/\s+/g, "_");
+  return s || "figure";
 }
 
 function downloadBlob(blob, filename) {

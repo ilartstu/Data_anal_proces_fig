@@ -65,6 +65,16 @@ class ResampleConfig(BaseModel):
     agg: str = "mean"             # mean | sum | min | max | median | first | last
 
 
+class WindowConfig(BaseModel):
+    """Show only a sub-window of the series (last/first N days or points, or a
+    span starting at a given date). Disabled => the whole range is returned."""
+    enabled: bool = False
+    unit: str = "days"            # days | points
+    count: float = 14            # number of days or points
+    anchor: str = "end"          # end | start | date
+    date: str | None = None       # ISO start datetime when anchor == "date"
+
+
 class SeriesRequest(ParseConfig):
     x_col: str | None = None
     y_cols: list[str] = Field(default_factory=list)
@@ -72,6 +82,7 @@ class SeriesRequest(ParseConfig):
     anomaly: AnomalyConfig = Field(default_factory=AnomalyConfig)
     detect_zeros: bool = True
     sort_x: bool = False
+    window: WindowConfig = Field(default_factory=WindowConfig)
     max_points: int = 150_000
 
 

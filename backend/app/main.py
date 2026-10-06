@@ -264,6 +264,11 @@ def series(req: SeriesRequest) -> dict:
     if req.sort_x and x_is_time:
         df, x_raw = _sort_by_x(df, x_raw)
 
+    # Optional time window (last/first N days or points, or a span from a date).
+    window_info = {"applied": False}
+    if req.window and req.window.enabled:
+        df, x_raw, window_info = _apply_window(df, x_raw, x_is_time, req.window)
+
     # Optional resampling (time axis only).
     if req.resample.rule and x_is_time:
         df, x_raw = _resample(df, x_raw, y_cols, req.resample.rule,
@@ -318,6 +323,7 @@ def series(req: SeriesRequest) -> dict:
         "x_col": x_col,
         "n": int(len(x_list)),
         "series": series_out,
+        "window": window_info,
     }
 
 
@@ -686,6 +692,72 @@ def _sort_by_x(df, x_raw):
     xi = pd.to_datetime(pd.Series(np.asarray(x_raw, dtype=object)), errors="coerce")
     order = xi.reset_index(drop=True).sort_values(kind="stable").index.to_numpy()
     return df.iloc[order].reset_index(drop=True), np.asarray(x_raw, dtype=object)[order]
+
+
+def _apply_window(df, x_raw, x_is_time, win):
+    """Slice rows to a sub-window and report the realized bounds.
+
+    unit="points": keep N consecutive rows (from end/start, or forward from a
+    date on a time axis). unit="days": keep rows within a day-span anchored at
+    the end, the start, or a given date (time axis only; falls back to points).
+    """
+    n = len(df)
+    xarr = np.asarray(x_raw, dtype=object)
+    info = {"applied": False}
+    if n == 0:
+        return df, x_raw, info
+    unit = (win.unit or "days").lower()
+    anchor = (win.anchor or "end").lower()
+
+    # By number of points (or non-time axis, where "days" has no meaning).
+    if unit == "points" or not x_is_time:
+        k = max(1, int(round(float(win.count or 0))))
+        if anchor == "start":
+            lo, hi = 0, min(n, k)
+        elif anchor == "date" and x_is_time:
+            xi = pd.to_datetime(pd.Series(xarr), errors="coerce").reset_index(drop=True)
+            start = pd.to_datetime(win.date, errors="coerce")
+            pos = int(xi.searchsorted(start)) if pd.notna(start) else 0
+            lo, hi = pos, min(n, pos + k)
+        else:                                   # end (default)
+            lo, hi = max(0, n - k), n
+        sub = df.iloc[lo:hi].reset_index(drop=True)
+        sx = xarr[lo:hi]
+        info = {"applied": True, "unit": "points", "anchor": anchor,
+                "rows": int(hi - lo)}
+        if x_is_time and len(sx):
+            info["x_start"], info["x_end"] = _iso(sx[0]), _iso(sx[-1])
+        return sub, sx, info
+
+    # By day-span on a time axis.
+    xi = pd.to_datetime(pd.Series(xarr), errors="coerce").reset_index(drop=True)
+    valid = xi.dropna()
+    if valid.empty:
+        return df, x_raw, info
+    span = pd.to_timedelta(float(win.count or 0), unit="D")
+    if anchor == "start":
+        lo = valid.min(); hi = lo + span
+    elif anchor == "date":
+        lo = pd.to_datetime(win.date, errors="coerce")
+        if pd.isna(lo):
+            lo = valid.min()
+        hi = lo + span
+    else:                                       # end (default)
+        hi = valid.max(); lo = hi - span
+    mask = ((xi >= lo) & (xi <= hi)).to_numpy()
+    sub = df.iloc[mask].reset_index(drop=True)
+    sx = xarr[mask]
+    kept = xi[mask].dropna()                     # report real data bounds
+    info = {"applied": True, "unit": "days", "anchor": anchor,
+            "rows": int(mask.sum()),
+            "x_start": _iso(kept.min()) if len(kept) else None,
+            "x_end": _iso(kept.max()) if len(kept) else None}
+    return sub, sx, info
+
+
+def _iso(v):
+    t = pd.to_datetime(v, errors="coerce")
+    return None if pd.isna(t) else t.isoformat()
 
 
 def _resample(df, x_raw, y_cols, rule, agg):
