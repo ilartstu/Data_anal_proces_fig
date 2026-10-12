@@ -3,6 +3,7 @@ import React, { useState } from "react";
 export default function TableView({
   tableData, busy, page, onPage, dropRows, dropColumnsCount, dropRowsCount,
   onDropColumn, onDropRow, onRename, onRestore, onExportCleaned, busyExport, readOnly,
+  enabledCols, xCol, normalize,
 }) {
   const [editCol, setEditCol] = useState(null);
   const cols = tableData?.columns || [];
@@ -11,13 +12,25 @@ export default function TableView({
   const pages = Math.max(1, Math.ceil(total / 100));
   const droppedRowSet = new Set(dropRows || []);
   const editsCount = (dropColumnsCount || 0) + (dropRowsCount || 0);
+  // Mirror the left-sidebar choices onto the grid columns.
+  const selSet = new Set(readOnly ? [] : (enabledCols || []));
+  const normSet = new Set(readOnly ? [] : (normalize || []));
+  const anyMark = !readOnly && (selSet.size || normSet.size || xCol);
 
   return (
     <div>
-      <div className="hint" style={{ marginBottom: 12 }}>
+      <div className="hint" style={{ marginBottom: anyMark ? 6 : 12 }}>
         Рабочая копия данных. Мусорка сверху колонки удаляет колонку, слева строки — строку.
         Оригинальный файл не меняется — правки попадают только в скачиваемый файл.
       </div>
+      {anyMark ? (
+        <div className="hint table-legend" style={{ marginBottom: 12 }}>
+          Отражает выбор слева:
+          <span className="th-badge x">⏱</span> ось X
+          <span className="th-badge sel">✓</span> выбрано
+          <span className="th-badge norm">÷max</span> нормализовано (значения поделены на максимум)
+        </div>
+      ) : null}
 
       <div className="inline" style={{ justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div className="section-title" style={{ margin: 0 }}>
@@ -42,8 +55,13 @@ export default function TableView({
           <thead>
             <tr>
               <th className="corner"></th>
-              {cols.map((c) => (
-                <th key={c}>
+              {cols.map((c) => {
+                const isX = !readOnly && c === xCol;
+                const isSel = selSet.has(c);
+                const isNorm = normSet.has(c);
+                const thCls = [isX ? "col-x" : "", isSel ? "col-selected" : ""].join(" ").trim();
+                return (
+                <th key={c} className={thCls || undefined}>
                   <div className="grid-colhead">
                     {!readOnly && (
                       <button className="trash" title="удалить колонку" onClick={() => onDropColumn(c)}>🗑</button>
@@ -60,9 +78,13 @@ export default function TableView({
                         style={{ cursor: readOnly ? "default" : "text" }}
                         onDoubleClick={() => !readOnly && setEditCol(c)}>{c}</span>
                     )}
+                    {isX && <span className="th-badge x" title="ось X">⏱</span>}
+                    {isNorm && <span className="th-badge norm" title="нормализовано (÷ max)">÷max</span>}
+                    {isSel && <span className="th-badge sel" title="выбрано слева">✓</span>}
                   </div>
                 </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
           <tbody>

@@ -229,14 +229,10 @@ def _detect_time_col(df) -> str:
 # --------------------------------------------------------------------------- #
 @app.post("/api/rows")
 def rows(req: RowsRequest) -> dict:
-    up = _get(req.id)
-    df = _parse_cached(up, req.sheet, req.header_row, req.skip_after)
-    if req.edits and (req.edits.renames or req.edits.drop_columns):
-        df = df.copy()
-    if req.edits and req.edits.renames:
-        df = df.rename(columns={o: n for o, n in req.edits.renames.items() if o in df.columns})
-    if req.edits and req.edits.drop_columns:
-        df = df.drop(columns=[c for c in req.edits.drop_columns if c in df.columns])
+    # Full working-copy pipeline (renames, dropped cols, cell deletions,
+    # interpolation, normalization) so the grid mirrors every change — but keep
+    # dropped rows in place (the UI strikes them through by index).
+    df = _read(req, drop_cols=True, clean=True, apply_row_drops=False)
     total = len(df)
     cols = [str(c) for c in df.columns]
     lo = max(0, int(req.offset))
@@ -614,19 +610,21 @@ def _get(upload_id: str):
         raise HTTPException(404, "Upload not found (expired?) — re-upload the file")
 
 
-def _read(req, drop_cols: bool = True, clean: bool = True):
+def _read(req, drop_cols: bool = True, clean: bool = True, apply_row_drops: bool = True):
     """Read the parsed dataframe and apply non-destructive working-copy edits.
     The original file on disk is never modified.
 
     `clean=False` applies only structural edits (renames / dropped columns &
     rows) and skips cell deletions + interpolation — used by the outliers list
     so that a deleted outlier still shows (marked), not vanishes.
+    `apply_row_drops=False` keeps dropped rows in place (the grid view strikes
+    them through by index instead of removing them).
     """
     up = _get(req.id)
     df = _parse_cached(up, req.sheet, req.header_row, req.skip_after)
     e = getattr(req, "edits", None)
     has_edits = e and (e.renames or e.drop_columns or e.drop_rows or e.deletions
-                       or (e.interpolate and e.interpolate.enabled))
+                       or (e.interpolate and e.interpolate.enabled) or e.normalize)
     if not has_edits:
         return df
     df = df.copy()   # don't mutate the cached parse
@@ -634,7 +632,7 @@ def _read(req, drop_cols: bool = True, clean: bool = True):
         df = df.rename(columns={o: n for o, n in e.renames.items() if o in df.columns})
     if drop_cols and e.drop_columns:
         df = df.drop(columns=[c for c in e.drop_columns if c in df.columns])
-    if e.drop_rows:
+    if e.drop_rows and apply_row_drops:
         valid = [i for i in e.drop_rows if 0 <= i < len(df)]
         if valid:
             df = df.drop(index=valid).reset_index(drop=True)
@@ -661,6 +659,16 @@ def _read(req, drop_cols: bool = True, clean: bool = True):
             if num.notna().sum() < 0.5 * len(num) and df[col].notna().sum() > num.notna().sum():
                 continue
             df[col] = analysis.interpolate_column(num.to_numpy(dtype=float), e.interpolate)
+    # Normalize selected columns: divide by the column's max over the whole
+    # period (anonymizes the absolute scale; the max itself is not stored).
+    if e.normalize:
+        for col in e.normalize:
+            if col not in df.columns:
+                continue
+            num = pd.to_numeric(df[col], errors="coerce")
+            mx = num.max(skipna=True)
+            if pd.notna(mx) and mx != 0:
+                df[col] = (num / mx).round(6)
     return df
 
 

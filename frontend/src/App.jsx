@@ -97,6 +97,7 @@ export default function App() {
   const [dropColumns, setDropColumns] = useState([]);
   const [dropRows, setDropRows] = useState([]);
   const [renames, setRenames] = useState({});        // original -> new name
+  const [normalize, setNormalize] = useState([]);    // cols ÷ their max
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(360);
   // Manual-calc mode: heavy chart isn't recomputed on every change — only on
@@ -156,7 +157,7 @@ export default function App() {
   // Working-copy edits payload sent with every request.
   const editsPayload = {
     renames, drop_columns: dropColumns, drop_rows: dropRows,
-    deletions, interpolate: interp,
+    deletions, interpolate: interp, normalize,
   };
   const editsKey = JSON.stringify(editsPayload);
   // Current-name -> original-name map (for keying renames by original).
@@ -220,7 +221,7 @@ export default function App() {
     setInspectData(null); setSeriesData(null); setStyles({}); setOrder([]);
     setXCol(null); setAnnotations([]); setDeletions([]); setBlocksData(null);
     setDropColumns([]); setDropRows([]); setRenames({}); setTableData(null); setTablePage(0);
-    setOutData(null); setTableSource("combined");
+    setNormalize([]); setOutData(null); setTableSource("combined");
   };
 
   const labelFor = (filename) =>
@@ -540,7 +541,7 @@ export default function App() {
       finally { setTableBusy(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, upload, sheet, headerRow, tablePage, tableSource, JSON.stringify(dropColumns), JSON.stringify(renames)]);
+  }, [viewMode, upload, sheet, headerRow, tablePage, tableSource, editsKey]);
 
   // -------- Outliers fetch (only in outliers mode) --------
   useEffect(() => {
@@ -632,6 +633,8 @@ export default function App() {
     prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]);
   const toggleDropRow = (idx) => setDropRows((prev) =>
     prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx]);
+  const toggleNormalize = (name) => setNormalize((prev) =>
+    prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name]);
   const restoreEdits = () => { setDropColumns([]); setDropRows([]); setRenames({}); setDeletions([]); };
 
   // Rename a column: key the rename by ORIGINAL name (backend applies it),
@@ -647,6 +650,7 @@ export default function App() {
     });
     setOrder((prev) => prev.map((c) => (c === current ? name : c)));
     setDropColumns((prev) => prev.map((c) => (c === current ? name : c)));
+    setNormalize((prev) => prev.map((c) => (c === current ? name : c)));
     setXCol((prev) => (prev === current ? name : prev));
     if (windDir === current) setWindDir(name);
     if (windMag === current) setWindMag(name);
@@ -758,7 +762,7 @@ export default function App() {
       resample, anomaly, anomaly_style: anomalyStyle, rolling, flags, annotations,
       view_mode: viewMode, dist_type: distType, corr_method: corrMethod,
       drop_columns: dropColumns, drop_rows: dropRows, renames,
-      deletions, interpolate: interp, sort_x: sortX, time_window: timeWindow,
+      deletions, interpolate: interp, normalize, sort_x: sortX, time_window: timeWindow,
     };
     downloadBlob(new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" }),
       "figures-preset.json");
@@ -789,6 +793,7 @@ export default function App() {
       if (Array.isArray(p.drop_rows)) setDropRows(p.drop_rows);
       if (p.renames && typeof p.renames === "object") setRenames(p.renames);
       if (Array.isArray(p.deletions)) setDeletions(p.deletions);
+      if (Array.isArray(p.normalize)) setNormalize(p.normalize);
       if (p.interpolate && typeof p.interpolate === "object") setInterp(p.interpolate);
       if (typeof p.sort_x === "boolean") setSortX(p.sort_x);
       if (p.time_window && typeof p.time_window === "object") setTimeWindow(p.time_window);
@@ -889,6 +894,7 @@ export default function App() {
               onMove={moveCol} onReorder={reorderCol}
               alignZero={flags.alignZero} onAlignZero={(v) => setFlags((f) => ({ ...f, alignZero: v }))}
               dropColumns={dropColumns} onDropColumn={toggleDropColumn} onRename={renameColumn}
+              normalize={normalize} onToggleNormalize={toggleNormalize}
             />
             <Controls
               resample={resample} onResample={setResample}
@@ -1151,6 +1157,7 @@ export default function App() {
                   onRestore={restoreEdits}
                   onExportCleaned={onExportCleaned} busyExport={busyExport}
                   readOnly={tableSource !== "combined"}
+                  enabledCols={enabledCols} xCol={xCol} normalize={normalize}
                 />
               </>
             )}

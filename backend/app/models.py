@@ -27,7 +27,8 @@ class Edits(BaseModel):
     """Non-destructive working-copy edits, applied on every read.
 
     Applied in order: rename columns, drop columns (by current name), drop rows
-    (0-based positions in the parsed data), blank deleted cells, interpolate.
+    (0-based positions in the parsed data), blank deleted cells, interpolate,
+    normalize (divide by the column's max over the whole period).
     The file on disk is never modified — edits are re-applied on every read.
     """
     renames: dict[str, str] = Field(default_factory=dict)   # original -> new
@@ -35,6 +36,7 @@ class Edits(BaseModel):
     drop_rows: list[int] = Field(default_factory=list)
     deletions: list[Deletion] = Field(default_factory=list)
     interpolate: InterpConfig = Field(default_factory=InterpConfig)
+    normalize: list[str] = Field(default_factory=list)      # cols ÷ their max
 
 
 class ParseConfig(BaseModel):

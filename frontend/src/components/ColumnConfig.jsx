@@ -26,12 +26,14 @@ export default function ColumnConfig({
   columns, order, xCol, onXCol, styles, onToggle, onToggleAll, onStyleChange,
   onAutoAxes, axisCount, onAxisCount, onMove, onReorder,
   alignZero, onAlignZero, dropColumns, onDropColumn, onRename,
+  normalize, onToggleNormalize,
 }) {
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
   const [editing, setEditing] = useState(null);   // column name being renamed
   if (!columns) return null;
   const dropped = new Set(dropColumns || []);
+  const normed = new Set(normalize || []);
   const byName = Object.fromEntries(columns.map((c) => [c.name, c]));
   const list = order.filter((n) => byName[n] && n !== xCol);
   const enabledCount = list.filter((n) => styles[n]?.enabled).length;
@@ -137,6 +139,14 @@ export default function ColumnConfig({
                   </span>
                 );
               })()}
+              {!isDropped && (
+                <label className={"norm-toggle" + (normed.has(name) ? " on" : "")}
+                  title="Нормализовать: делить на максимум за весь период">
+                  <input type="checkbox" checked={normed.has(name)}
+                    onChange={() => onToggleNormalize(name)} />
+                  ÷max
+                </label>
+              )}
               <button className="trash" title={isDropped ? "вернуть колонку" : "удалить колонку"}
                 onClick={() => onDropColumn(name)}
                 style={isDropped ? { color: "var(--accent)" } : undefined}>
