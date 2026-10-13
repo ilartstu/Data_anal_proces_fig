@@ -37,6 +37,7 @@ class Edits(BaseModel):
     deletions: list[Deletion] = Field(default_factory=list)
     interpolate: InterpConfig = Field(default_factory=InterpConfig)
     normalize: list[str] = Field(default_factory=list)      # cols ÷ their max
+    normalize_mode: str = "self"   # "self": each ÷ own max; "common": all ÷ shared max
 
 
 class ParseConfig(BaseModel):

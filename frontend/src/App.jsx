@@ -98,6 +98,7 @@ export default function App() {
   const [dropRows, setDropRows] = useState([]);
   const [renames, setRenames] = useState({});        // original -> new name
   const [normalize, setNormalize] = useState([]);    // cols ÷ their max
+  const [normalizeMode, setNormalizeMode] = useState("self");  // self | common
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(360);
   // Manual-calc mode: heavy chart isn't recomputed on every change — only on
@@ -157,7 +158,7 @@ export default function App() {
   // Working-copy edits payload sent with every request.
   const editsPayload = {
     renames, drop_columns: dropColumns, drop_rows: dropRows,
-    deletions, interpolate: interp, normalize,
+    deletions, interpolate: interp, normalize, normalize_mode: normalizeMode,
   };
   const editsKey = JSON.stringify(editsPayload);
   // Current-name -> original-name map (for keying renames by original).
@@ -221,7 +222,7 @@ export default function App() {
     setInspectData(null); setSeriesData(null); setStyles({}); setOrder([]);
     setXCol(null); setAnnotations([]); setDeletions([]); setBlocksData(null);
     setDropColumns([]); setDropRows([]); setRenames({}); setTableData(null); setTablePage(0);
-    setNormalize([]); setOutData(null); setTableSource("combined");
+    setNormalize([]); setNormalizeMode("self"); setOutData(null); setTableSource("combined");
   };
 
   const labelFor = (filename) =>
@@ -594,20 +595,30 @@ export default function App() {
     });
   };
 
-  // -------- Reorder series (arrows / drag) --------
+  // -------- Reorder series (arrows / drag) — by NAME, so it stays correct no
+  // matter that the visible list hides the X column (index-based reorder on the
+  // full `order` would land items in the wrong place). --------
   const moveCol = (name, dir) => setOrder((prev) => {
-    const i = prev.indexOf(name);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= prev.length) return prev;
+    const vis = prev.filter((n) => n !== xCol && (inspectData?.columns || []).some((c) => c.name === n));
+    const vi = vis.indexOf(name);
+    const vj = vi + dir;
+    if (vi < 0 || vj < 0 || vj >= vis.length) return prev;
+    const neighbor = vis[vj];
     const next = [...prev];
+    const i = next.indexOf(name), j = next.indexOf(neighbor);
+    if (i < 0 || j < 0) return prev;
     [next[i], next[j]] = [next[j], next[i]];
     return next;
   });
-  const reorderCol = (from, to) => setOrder((prev) => {
-    if (from === to || from < 0 || to < 0) return prev;
-    const next = [...prev];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
+  // Insert `fromName` directly before/after `toName` — matches the dashed
+  // insertion line exactly, whatever the drag direction.
+  const reorderCol = (fromName, toName, pos = "before") => setOrder((prev) => {
+    if (fromName === toName || !prev.includes(fromName) || !prev.includes(toName)) return prev;
+    const next = prev.filter((n) => n !== fromName);
+    let to = next.indexOf(toName);
+    if (to < 0) return prev;
+    if (pos === "after") to += 1;
+    next.splice(to, 0, fromName);
     return next;
   });
 
@@ -762,7 +773,8 @@ export default function App() {
       resample, anomaly, anomaly_style: anomalyStyle, rolling, flags, annotations,
       view_mode: viewMode, dist_type: distType, corr_method: corrMethod,
       drop_columns: dropColumns, drop_rows: dropRows, renames,
-      deletions, interpolate: interp, normalize, sort_x: sortX, time_window: timeWindow,
+      deletions, interpolate: interp, normalize, normalize_mode: normalizeMode,
+      sort_x: sortX, time_window: timeWindow,
     };
     downloadBlob(new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" }),
       "figures-preset.json");
@@ -794,6 +806,7 @@ export default function App() {
       if (p.renames && typeof p.renames === "object") setRenames(p.renames);
       if (Array.isArray(p.deletions)) setDeletions(p.deletions);
       if (Array.isArray(p.normalize)) setNormalize(p.normalize);
+      if (p.normalize_mode === "common" || p.normalize_mode === "self") setNormalizeMode(p.normalize_mode);
       if (p.interpolate && typeof p.interpolate === "object") setInterp(p.interpolate);
       if (typeof p.sort_x === "boolean") setSortX(p.sort_x);
       if (p.time_window && typeof p.time_window === "object") setTimeWindow(p.time_window);
@@ -895,6 +908,7 @@ export default function App() {
               alignZero={flags.alignZero} onAlignZero={(v) => setFlags((f) => ({ ...f, alignZero: v }))}
               dropColumns={dropColumns} onDropColumn={toggleDropColumn} onRename={renameColumn}
               normalize={normalize} onToggleNormalize={toggleNormalize}
+              normalizeMode={normalizeMode} onNormalizeMode={setNormalizeMode}
             />
             <Controls
               resample={resample} onResample={setResample}

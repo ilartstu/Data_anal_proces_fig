@@ -659,16 +659,25 @@ def _read(req, drop_cols: bool = True, clean: bool = True, apply_row_drops: bool
             if num.notna().sum() < 0.5 * len(num) and df[col].notna().sum() > num.notna().sum():
                 continue
             df[col] = analysis.interpolate_column(num.to_numpy(dtype=float), e.interpolate)
-    # Normalize selected columns: divide by the column's max over the whole
-    # period (anonymizes the absolute scale; the max itself is not stored).
+    # Normalize selected columns: divide by a max over the whole period.
+    # mode "self": each column by its own max (shape comparison, every peak → 1).
+    # mode "common": all by one shared max (keeps relative amplitude differences
+    # between the compared columns visible). The max itself is not stored.
     if e.normalize:
-        for col in e.normalize:
-            if col not in df.columns:
-                continue
-            num = pd.to_numeric(df[col], errors="coerce")
-            mx = num.max(skipna=True)
-            if pd.notna(mx) and mx != 0:
-                df[col] = (num / mx).round(6)
+        cols = [c for c in e.normalize if c in df.columns]
+        nums = {c: pd.to_numeric(df[c], errors="coerce") for c in cols}
+        if getattr(e, "normalize_mode", "self") == "common":
+            maxes = [nums[c].max(skipna=True) for c in cols]
+            maxes = [m for m in maxes if pd.notna(m)]
+            shared = max(maxes) if maxes else None
+            if shared is not None and shared != 0:
+                for c in cols:
+                    df[c] = (nums[c] / shared).round(6)
+        else:
+            for c in cols:
+                mx = nums[c].max(skipna=True)
+                if pd.notna(mx) and mx != 0:
+                    df[c] = (nums[c] / mx).round(6)
     return df
 
 

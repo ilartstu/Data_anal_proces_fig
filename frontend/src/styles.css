@@ -53,9 +53,11 @@ body {
   position: sticky;
   top: 0;
 }
+/* Pinned to the viewport at the sidebar's right edge, so resizing works at any
+   scroll position (an absolutely-positioned handle scrolled away with content). */
 .sidebar-resize {
-  position: absolute; top: 0; right: 0; width: 7px; height: 100%;
-  cursor: col-resize; z-index: 20;
+  position: fixed; top: 0; left: var(--sb-width, 360px); width: 7px; height: 100vh;
+  margin-left: -3px; cursor: col-resize; z-index: 45;
 }
 .sidebar-resize:hover { background: var(--accent-soft); box-shadow: inset -2px 0 0 var(--accent); }
 .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
@@ -238,6 +240,7 @@ table.blocks-table td:nth-child(2), table.blocks-table td:nth-child(3) { font-va
     width: 88vw; min-width: 0; max-width: 360px; height: 100vh;
     box-shadow: 0 0 0 100vw rgba(20, 30, 50, 0.28), var(--shadow);
   }
+  .sidebar-resize { display: none; }
   .main { padding: 16px 14px; }
   .app.sidebar-collapsed .main { padding-left: 14px; }
   .main-header h2 { font-size: 17px; }
@@ -318,6 +321,11 @@ table.blocks-table td:nth-child(2), table.blocks-table td:nth-child(3) { font-va
 }
 .norm-toggle input { margin: 0; }
 .norm-toggle.on { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.norm-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
+.norm-peak {
+  font-size: 9.5px; color: var(--ok); background: #e7f6ee;
+  border-radius: 5px; padding: 0 4px; line-height: 14px; white-space: nowrap;
+}
 
 /* ---- Grid column marks (mirror sidebar choices) ---- */
 .grid-table th.col-selected { background: var(--accent-soft); }

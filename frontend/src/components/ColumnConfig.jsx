@@ -26,14 +26,16 @@ export default function ColumnConfig({
   columns, order, xCol, onXCol, styles, onToggle, onToggleAll, onStyleChange,
   onAutoAxes, axisCount, onAxisCount, onMove, onReorder,
   alignZero, onAlignZero, dropColumns, onDropColumn, onRename,
-  normalize, onToggleNormalize,
+  normalize, onToggleNormalize, normalizeMode, onNormalizeMode,
 }) {
-  const [dragIdx, setDragIdx] = useState(null);
-  const [overIdx, setOverIdx] = useState(null);
+  const [dragName, setDragName] = useState(null);   // column being dragged
+  const [overName, setOverName] = useState(null);   // row hovered over
+  const [overPos, setOverPos] = useState("before"); // insert before/after it
   const [editing, setEditing] = useState(null);   // column name being renamed
   if (!columns) return null;
   const dropped = new Set(dropColumns || []);
   const normed = new Set(normalize || []);
+  const fmtPeak = (v) => (v == null ? "" : Number(v).toFixed(2));
   const byName = Object.fromEntries(columns.map((c) => [c.name, c]));
   const list = order.filter((n) => byName[n] && n !== xCol);
   const enabledCount = list.filter((n) => styles[n]?.enabled).length;
@@ -82,6 +84,24 @@ export default function ColumnConfig({
         Перетащите / ▲▼ — порядок наложения
       </div>
 
+      {normed.size > 0 && (
+        <div className="inline small" style={{ margin: "0 0 10px", gap: 8, flexWrap: "wrap" }}>
+          <span className="muted">Нормировать по:</span>
+          <div className="pill-toggle">
+            <span className={"pill" + (normalizeMode !== "common" ? " active" : "")}
+              onClick={() => onNormalizeMode("self")}
+              title="Каждый ряд делится на свой максимум — все пики = 1 (сравнение формы)">
+              своему макс.
+            </span>
+            <span className={"pill" + (normalizeMode === "common" ? " active" : "")}
+              onClick={() => onNormalizeMode("common")}
+              title="Все отмеченные делятся на один общий максимум — видна разница амплитуд">
+              общему макс.
+            </span>
+          </div>
+        </div>
+      )}
+
       {axisCount > 1 && (
         <label className="inline small" style={{ marginBottom: 8 }}>
           <input type="checkbox" checked={!!alignZero}
@@ -100,14 +120,27 @@ export default function ColumnConfig({
             className={"col-row"
               + (on && !isDropped ? " enabled" : "")
               + (isDropped ? " col-dropped" : "")
-              + (dragIdx === idx ? " dragging" : "")
-              + (overIdx === idx && dragIdx !== null && dragIdx !== idx
-                ? (dragIdx > idx ? " drop-before" : " drop-after") : "")}
+              + (dragName === name ? " dragging" : "")
+              + (overName === name && dragName && dragName !== name
+                ? (overPos === "before" ? " drop-before" : " drop-after") : "")}
             draggable={!isDropped && editing !== name}
-            onDragStart={() => setDragIdx(idx)}
-            onDragOver={(e) => { e.preventDefault(); if (overIdx !== idx) setOverIdx(idx); }}
-            onDrop={() => { onReorder(dragIdx, idx); setDragIdx(null); setOverIdx(null); }}
-            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+            onDragStart={(e) => {
+              setDragName(name);
+              try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", name); } catch { /* noop */ }
+            }}
+            onDragOver={(e) => {
+              e.preventDefault(); e.dataTransfer.dropEffect = "move";
+              const r = e.currentTarget.getBoundingClientRect();
+              const pos = e.clientY < r.top + r.height / 2 ? "before" : "after";
+              if (overName !== name || overPos !== pos) { setOverName(name); setOverPos(pos); }
+            }}
+            onDrop={(e) => e.preventDefault()}
+            onDragEnd={() => {
+              // Runs even when released in the gap between rows, so the item
+              // lands on the last highlighted slot instead of snapping back.
+              if (dragName && overName && overName !== dragName) onReorder(dragName, overName, overPos);
+              setDragName(null); setOverName(null);
+            }}
           >
             <div className="col-row-top">
               <span className="drag-handle" title="Перетащить" style={isDropped ? { visibility: "hidden" } : undefined}>⋮⋮</span>
@@ -140,12 +173,19 @@ export default function ColumnConfig({
                 );
               })()}
               {!isDropped && (
-                <label className={"norm-toggle" + (normed.has(name) ? " on" : "")}
-                  title="Нормализовать: делить на максимум за весь период">
-                  <input type="checkbox" checked={normed.has(name)}
-                    onChange={() => onToggleNormalize(name)} />
-                  ÷max
-                </label>
+                <div className="norm-cell">
+                  <label className={"norm-toggle" + (normed.has(name) ? " on" : "")}
+                    title="Нормализовать: делить на максимум за весь период">
+                    <input type="checkbox" checked={normed.has(name)}
+                      onChange={() => onToggleNormalize(name)} />
+                    ÷max
+                  </label>
+                  {normed.has(name) && c && c.max != null && (
+                    <span className="norm-peak" title="пик ряда после нормировки">
+                      пик {fmtPeak(c.max)}
+                    </span>
+                  )}
+                </div>
               )}
               <button className="trash" title={isDropped ? "вернуть колонку" : "удалить колонку"}
                 onClick={() => onDropColumn(name)}
