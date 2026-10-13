@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Plotly from "plotly.js-dist-min";
 import { ASPECT_RATIOS, chartThumbnail } from "../lib/exportImage";
+import { useT } from "../i18n";
 
 const FORMATS = [
   { value: "png", label: "PNG" },
@@ -34,6 +35,7 @@ function sized(row, edge) {
 }
 
 export default function ExportDialog({ open, charts, onClose, onExport }) {
+  const t = useT();
   const [format, setFormat] = useState("png");
   const [dpi, setDpi] = useState(300);
   const [bg, setBg] = useState("white");
@@ -132,14 +134,14 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
     <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" style={{ maxWidth: 560 }} role="dialog" aria-modal="true">
         <div className="modal-head">
-          <h3>{multi ? "Сохранить графики" : "Сохранить график"}</h3>
-          <button className="modal-x" onClick={onClose} title="Закрыть">×</button>
+          <h3>{multi ? t("Сохранить графики") : t("Сохранить график")}</h3>
+          <button className="modal-x" onClick={onClose} title={t("Закрыть")}>×</button>
         </div>
 
         {/* ---- Shared settings ---- */}
         <div className="grid2">
           <label className="field" style={{ marginBottom: 0 }}>
-            <span>Формат</span>
+            <span>{t("Формат")}</span>
             <div className="seg seg-fill">
               {FORMATS.map((f) => (
                 <button key={f.value} className={format === f.value ? "active" : ""}
@@ -149,10 +151,10 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
           </label>
           {isRaster && (
             <label className="field" style={{ marginBottom: 0 }}>
-              <span>Фон</span>
+              <span>{t("Фон")}</span>
               <select value={bg} onChange={(e) => setBg(e.target.value)} disabled={format === "jpeg"}>
-                <option value="white">Белый</option>
-                <option value="transparent">Прозрачный</option>
+                <option value="white">{t("Белый")}</option>
+                <option value="transparent">{t("Прозрачный")}</option>
               </select>
             </label>
           )}
@@ -161,16 +163,16 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
         {isRaster && (
           <div className="grid2" style={{ marginTop: 10 }}>
             <label className="field" style={{ marginBottom: 0 }}>
-              <span>DPI (общий)</span>
+              <span>{t("DPI (общий)")}</span>
               <input type="number" min="1" step="1" value={dpi}
                 onChange={(e) => setDpi(Number(e.target.value) || 0)} />
             </label>
             <label className="field" style={{ marginBottom: 0 }}>
-              <span>Качество (размер)</span>
+              <span>{t("Качество (размер)")}</span>
               <div className="seg seg-fill">
                 {QUALITY.map((q) => (
                   <button key={q.label} onClick={() => applyQuality(q.edge)}
-                    title={`длинная сторона ${q.edge}px`}>{q.label}</button>
+                    title={t("длинная сторона {n}px", { n: q.edge })}>{q.label}</button>
                 ))}
               </div>
             </label>
@@ -179,7 +181,7 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
 
         {format === "jpeg" && (
           <label className="field" style={{ marginTop: 10 }}>
-            <span>Качество JPEG: {Math.round(quality * 100)}%</span>
+            <span>{t("Качество JPEG: {n}%", { n: Math.round(quality * 100) })}</span>
             <input type="range" min="0.3" max="1" step="0.01" value={quality}
               onChange={(e) => setQuality(Number(e.target.value))} />
           </label>
@@ -189,13 +191,13 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
         <div className="export-rows">
           <div className="export-rows-head">
             {multi ? (
-              <label className="inline small" style={{ gap: 6 }} title={allOn ? "Снять все" : "Выбрать все"}>
+              <label className="inline small" style={{ gap: 6 }} title={allOn ? t("Снять все") : t("Выбрать все")}>
                 <input type="checkbox" ref={(el) => { if (el) el.indeterminate = someOn && !allOn; }}
                   checked={allOn} onChange={(e) => toggleAll(e.target.checked)} />
-                <span className="small muted">выбрать все графики ({rows.length})</span>
+                <span className="small muted">{t("выбрать все графики ({n})", { n: rows.length })}</span>
               </label>
-            ) : <span className="small muted">Настройки графика</span>}
-            <span className="small muted">имя · соотношение · размер</span>
+            ) : <span className="small muted">{t("Настройки графика")}</span>}
+            <span className="small muted">{t("имя · соотношение · размер")}</span>
           </div>
 
           {rows.map((r, i) => (
@@ -213,18 +215,18 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
                 <div className="export-row-label" title={r.label}>{r.label}</div>
                 <div className="export-row-controls">
                   <input type="text" className="export-name" value={r.name}
-                    title="Имя файла" placeholder={r.label}
+                    title={t("Имя файла")} placeholder={r.label}
                     onChange={(e) => setRow(i, { name: e.target.value })} />
                   <select value={r.ratioIdx} onChange={(e) => onRowRatio(i, Number(e.target.value))}
-                    style={{ width: "auto" }} title="Соотношение сторон">
-                    {ASPECT_RATIOS.map((ar, k) => <option key={ar.label} value={k}>{ar.label}</option>)}
+                    style={{ width: "auto" }} title={t("Соотношение сторон")}>
+                    {ASPECT_RATIOS.map((ar, k) => <option key={ar.label} value={k}>{t(ar.label)}</option>)}
                   </select>
                   <span className="inline" style={{ gap: 4 }}>
                     <input type="number" min="1" step="1" value={r.width} style={{ width: 66 }}
-                      title="Ширина, px" onChange={(e) => onRowW(i, e.target.value)} />
+                      title={t("Ширина, px")} onChange={(e) => onRowW(i, e.target.value)} />
                     <span className="muted">×</span>
                     <input type="number" min="1" step="1" value={r.height} style={{ width: 66 }}
-                      title="Высота, px" disabled={ASPECT_RATIOS[r.ratioIdx].w > 0}
+                      title={t("Высота, px")} disabled={ASPECT_RATIOS[r.ratioIdx].w > 0}
                       onChange={(e) => onRowH(i, e.target.value)} />
                   </span>
                 </div>
@@ -234,16 +236,14 @@ export default function ExportDialog({ open, charts, onClose, onExport }) {
         </div>
 
         <div className="hint">
-          Качество/размер меняют только разрешение — подписи и шрифты остаются
-          такого же размера, как на экране. Высота при выбранном соотношении
-          считается автоматически (без чёрных полос).
-          {isRaster ? " DPI и формат — общие для всех." : " SVG — вектор, DPI не нужен."}
+          {t("Качество/размер меняют только разрешение — подписи и шрифты остаются такого же размера, как на экране. Высота при выбранном соотношении считается автоматически (без чёрных полос).")}
+          {isRaster ? t(" DPI и формат — общие для всех.") : t(" SVG — вектор, DPI не нужен.")}
         </div>
 
         <div className="modal-foot">
-          <button className="ghost" onClick={onClose}>Отмена</button>
+          <button className="ghost" onClick={onClose}>{t("Отмена")}</button>
           <button className="primary" onClick={doExport} disabled={!selected.length}>
-            ⬇ Скачать{selected.length > 1 ? ` (${selected.length})` : ""}
+            {t("⬇ Скачать")}{selected.length > 1 ? ` (${selected.length})` : ""}
           </button>
         </div>
       </div>

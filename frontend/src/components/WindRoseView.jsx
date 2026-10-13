@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "plotly.js-dist-min";
+import { useT } from "../i18n";
 
 const Plot = createPlotlyComponent(Plotly);
 const SECTORS = 16;
@@ -10,10 +11,11 @@ const BIN_COLORS = ["#c7e0ff", "#7aa8f5", "#3b6ef5", "#e0a144", "#e0564d"];
 export default function WindRoseView({
   seriesData, styles, columns, dirCol, magCol, onDirCol, onMagCol, onGraphDiv,
 }) {
+  const t = useT();
   const { traces, layout, note } = useMemo(() => {
     const dirS = seriesData?.series.find((s) => s.name === dirCol);
     const magS = seriesData?.series.find((s) => s.name === magCol);
-    if (!dirS || !magS) return { traces: [], layout: {}, note: "Выберите колонки направления и величины." };
+    if (!dirS || !magS) return { traces: [], layout: {}, note: t("Выберите колонки направления и величины.") };
 
     const dir = dirS.y, mag = magS.y;
     const n = Math.min(dir.length, mag.length);
@@ -34,7 +36,7 @@ export default function WindRoseView({
       counts[bin][sector] += 1;
       total += 1;
     }
-    if (!total) return { traces: [], layout: {}, note: "Нет валидных пар (направление, величина)." };
+    if (!total) return { traces: [], layout: {}, note: t("Нет валидных пар (направление, величина).") };
 
     const theta = Array.from({ length: SECTORS }, (_, s) => s * (360 / SECTORS));
     const traces = counts.map((row, bin) => {
@@ -59,28 +61,28 @@ export default function WindRoseView({
         radialaxis: { ticksuffix: "%", angle: 90, tickfont: { size: 10 } },
         angularaxis: { direction: "clockwise", rotation: 90,
           tickmode: "array", tickvals: [0, 45, 90, 135, 180, 225, 270, 315],
-          ticktext: ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"] },
+          ticktext: ["С", "СВ", "В", "ЮВ", "Ю", "ЮЗ", "З", "СЗ"].map((d) => t(d)) },
       },
       paper_bgcolor: "white",
       font: { family: "-apple-system, Segoe UI, Roboto, sans-serif", size: 12, color: "#1c2530" },
       uirevision: "windrose",
     };
     return { traces, layout, note: null };
-  }, [seriesData, dirCol, magCol, styles]);
+  }, [seriesData, dirCol, magCol, styles, t]);
 
   return (
     <div>
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row" style={{ gap: 12 }}>
           <label className="field" style={{ marginBottom: 0 }}>
-            <span>Направление (°)</span>
+            <span>{t("Направление (°)")}</span>
             <select value={dirCol || ""} onChange={(e) => onDirCol(e.target.value)}>
               <option value="">—</option>
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className="field" style={{ marginBottom: 0 }}>
-            <span>Величина (скорость)</span>
+            <span>{t("Величина (скорость)")}</span>
             <select value={magCol || ""} onChange={(e) => onMagCol(e.target.value)}>
               <option value="">—</option>
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -88,8 +90,7 @@ export default function WindRoseView({
           </label>
         </div>
         <div className="small muted" style={{ marginTop: 8 }}>
-          Колонки берутся из выбранных слева. Роза показывает, с каких направлений
-          дуёт чаще и с какой величиной (цвет — диапазон величины).
+          {t("Колонки берутся из выбранных слева. Роза показывает, с каких направлений дуёт чаще и с какой величиной (цвет — диапазон величины).")}
         </div>
       </div>
       {note ? (

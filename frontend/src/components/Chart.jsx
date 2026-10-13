@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "plotly.js-dist-min";
+import { useT } from "../i18n";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -136,6 +137,7 @@ function alignedZeroRanges(usedAxes, namesByAxis, statsByName) {
 }
 
 export default function Chart({ data, styles, flags, anomalyStyle, rolling, annotations, onAddAnnotation, onGraphDiv }) {
+  const t = useT();
   const { traces, layout } = useMemo(() => {
     const sharedX = data.x;
     const big = data.n > GL_THRESHOLD;
@@ -200,10 +202,10 @@ export default function Chart({ data, styles, flags, anomalyStyle, rolling, anno
           traces.push({
             x: s.anomalies.map((a) => a.x),
             y: s.anomalies.map((a) => a.y),
-            name: `${s.name} · аномалии (${s.anomaly_count})`,
+            name: `${s.name} · ${t("аномалии")} (${s.anomaly_count})`,
             type: "scattergl", mode: "markers", yaxis: yref,
             marker: anomalyMarker(aStyle.mode, aStyle.color, aStyle.size),
-            hovertemplate: `⚠ ${s.name}<br>%{x}<br>%{y}<extra>аномалия</extra>`,
+            hovertemplate: `⚠ ${s.name}<br>%{x}<br>%{y}<extra>${t("аномалия")}</extra>`,
           });
         }
       }
@@ -221,10 +223,10 @@ export default function Chart({ data, styles, flags, anomalyStyle, rolling, anno
             showlegend: false, hoverinfo: "skip", connectgaps: false });
         }
         traces.push({
-          x, y: mean, name: `${s.name} · скольз.${rolling.window}`,
+          x, y: mean, name: `${s.name} · ${t("скольз.")}${rolling.window}`,
           type: "scatter", mode: "lines", yaxis: yref, connectgaps: false,
           line: { color: st.color, width: 2, dash: "dot" },
-          hovertemplate: `${s.name} скольз.<br>%{x}<br>%{y}<extra></extra>`,
+          hovertemplate: `${s.name} ${t("скольз.")}<br>%{x}<br>%{y}<extra></extra>`,
         });
       }
 
@@ -242,7 +244,7 @@ export default function Chart({ data, styles, flags, anomalyStyle, rolling, anno
     // Manual marks as lightweight layout annotations (arrow + label).
     const layoutAnnotations = flags.showAnnotations ? annotations.map((a) => ({
       x: a.x, y: a.y, yref: a.axis || "y",
-      text: a.text || "метка", showarrow: true, arrowhead: 3, arrowsize: 1,
+      text: a.text || t("метка"), showarrow: true, arrowhead: 3, arrowsize: 1,
       ax: 0, ay: -34, bgcolor: "rgba(138,92,246,0.12)", bordercolor: "#8a5cf6",
       borderwidth: 1, borderpad: 3, font: { color: "#5b3bbf", size: 11 },
     })) : [];
@@ -269,13 +271,13 @@ export default function Chart({ data, styles, flags, anomalyStyle, rolling, anno
     };
     layout._truncatedShapes = truncatedShapes;
     return { traces, layout };
-  }, [data, styles, flags, anomalyStyle, rolling, annotations]);
+  }, [data, styles, flags, anomalyStyle, rolling, annotations, t]);
 
   return (
     <div>
       {layout._truncatedShapes && (
         <div className="small muted" style={{ marginBottom: 6 }}>
-          Показаны не все участки подсветки (слишком много). Уменьшите диапазон или включите ресемплинг.
+          {t("Показаны не все участки подсветки (слишком много). Уменьшите диапазон или включите ресемплинг.")}
         </div>
       )}
       <Plot
@@ -288,7 +290,7 @@ export default function Chart({ data, styles, flags, anomalyStyle, rolling, anno
         onClick={(e) => {
           if (!onAddAnnotation || !e?.points?.length) return;
           const p = e.points[0];
-          const text = window.prompt("Подпись отметки:", "метка");
+          const text = window.prompt(t("Подпись отметки:"), t("метка"));
           if (text === null) return;
           onAddAnnotation({ x: p.x, y: p.y, text, axis: p.data.yaxis || "y", col: p.data.name });
         }}

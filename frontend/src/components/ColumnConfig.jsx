@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { CHART_TYPES, DASH_OPTIONS } from "../constants";
+import { useT } from "../i18n";
 
 function axisNum(a) { return typeof a === "number" ? a : (a === "y2" ? 2 : 1); }
 
@@ -11,11 +12,12 @@ function splitName(name) {
 }
 
 function Badges({ c }) {
+  const t = useT();
   if (!c) return null;
   return (
     <div className="col-badges">
-      {c.is_time && <span className="badge time">время</span>}
-      {c.is_numeric && !c.is_time && <span className="badge num">число</span>}
+      {c.is_time && <span className="badge time">{t("время")}</span>}
+      {c.is_numeric && !c.is_time && <span className="badge num">{t("число")}</span>}
       {c.nan_count > 0 && <span className="badge nan">NaN {c.nan_pct}%</span>}
       {c.zero_count > 0 && <span className="badge zero">0 · {c.zero_pct}%</span>}
     </div>
@@ -28,6 +30,7 @@ export default function ColumnConfig({
   alignZero, onAlignZero, dropColumns, onDropColumn, onRename,
   normalize, onToggleNormalize, normalizeMode, onNormalizeMode,
 }) {
+  const t = useT();
   const [dragName, setDragName] = useState(null);   // column being dragged
   const [overName, setOverName] = useState(null);   // row hovered over
   const [overPos, setOverPos] = useState("before"); // insert before/after it
@@ -46,10 +49,10 @@ export default function ColumnConfig({
 
   return (
     <div className="section">
-      <div className="section-title">3 · Ось X и колонки</div>
+      <div className="section-title">{t("3 · Ось X и колонки")}</div>
 
       <label className="field">
-        <span>Ось X</span>
+        <span>{t("Ось X")}</span>
         <select value={xCol || ""} onChange={(e) => onXCol(e.target.value)}>
           {columns.map((c) => (
             <option key={c.name} value={c.name}>{c.name}{c.is_time ? "  ⏱" : ""}</option>
@@ -59,44 +62,44 @@ export default function ColumnConfig({
 
       <div className="inline" style={{ justifyContent: "space-between", margin: "4px 0 8px", flexWrap: "wrap", gap: 6 }}>
         <label className="inline small" style={{ gap: 6, cursor: "pointer" }}
-          title={allOn ? "Снять все" : "Выделить все"}>
+          title={allOn ? t("Снять все") : t("Выделить все")}>
           <input type="checkbox"
             ref={(el) => { if (el) el.indeterminate = someOn && !allOn; }}
             checked={allOn} disabled={toggleable.length === 0}
             onChange={(e) => onToggleAll && onToggleAll(e.target.checked)} />
-          <span className="small muted">все колонки</span>
+          <span className="small muted">{t("все колонки")}</span>
         </label>
         <div className="inline" style={{ gap: 8 }}>
-          <label className="inline small" title="Число осей Y">
-            осей
+          <label className="inline small" title={t("Число осей Y")}>
+            {t("осей")}
             <input type="number" min="1" max="6" step="1" value={axisCount}
               onChange={(e) => onAxisCount(Math.min(6, Math.max(1, Number(e.target.value))))}
               style={{ width: 48 }} />
           </label>
           {enabledCount >= 2 && (
-            <button className="ghost small" onClick={onAutoAxes} title="Разбить ряды по масштабу на оси">
-              🎚 Авто-оси
+            <button className="ghost small" onClick={onAutoAxes} title={t("Разбить ряды по масштабу на оси")}>
+              {t("🎚 Авто-оси")}
             </button>
           )}
         </div>
       </div>
       <div className="small muted" style={{ margin: "-4px 0 8px" }}>
-        Перетащите / ▲▼ — порядок наложения
+        {t("Перетащите / ▲▼ — порядок наложения")}
       </div>
 
       {normed.size > 0 && (
         <div className="inline small" style={{ margin: "0 0 10px", gap: 8, flexWrap: "wrap" }}>
-          <span className="muted">Нормировать по:</span>
+          <span className="muted">{t("Нормировать по:")}</span>
           <div className="pill-toggle">
             <span className={"pill" + (normalizeMode !== "common" ? " active" : "")}
               onClick={() => onNormalizeMode("self")}
-              title="Каждый ряд делится на свой максимум — все пики = 1 (сравнение формы)">
-              своему макс.
+              title={t("Каждый ряд делится на свой максимум — все пики = 1 (сравнение формы)")}>
+              {t("своему макс.")}
             </span>
             <span className={"pill" + (normalizeMode === "common" ? " active" : "")}
               onClick={() => onNormalizeMode("common")}
-              title="Все отмеченные делятся на один общий максимум — видна разница амплитуд">
-              общему макс.
+              title={t("Все отмеченные делятся на один общий максимум — видна разница амплитуд")}>
+              {t("общему макс.")}
             </span>
           </div>
         </div>
@@ -106,7 +109,7 @@ export default function ColumnConfig({
         <label className="inline small" style={{ marginBottom: 8 }}>
           <input type="checkbox" checked={!!alignZero}
             onChange={(e) => onAlignZero(e.target.checked)} />
-          совмещать ноль всех осей Y
+          {t("совмещать ноль всех осей Y")}
         </label>
       )}
 
@@ -143,15 +146,15 @@ export default function ColumnConfig({
             }}
           >
             <div className="col-row-top">
-              <span className="drag-handle" title="Перетащить" style={isDropped ? { visibility: "hidden" } : undefined}>⋮⋮</span>
+              <span className="drag-handle" title={t("Перетащить")} style={isDropped ? { visibility: "hidden" } : undefined}>⋮⋮</span>
               <div className="arrows" style={isDropped ? { visibility: "hidden" } : undefined}>
-                <button className="arrow" title="Выше (на передний план)" onClick={() => onMove(name, -1)} disabled={idx === 0}>▲</button>
-                <button className="arrow" title="Ниже" onClick={() => onMove(name, 1)} disabled={idx === list.length - 1}>▼</button>
+                <button className="arrow" title={t("Выше (на передний план)")} onClick={() => onMove(name, -1)} disabled={idx === 0}>▲</button>
+                <button className="arrow" title={t("Ниже")} onClick={() => onMove(name, 1)} disabled={idx === list.length - 1}>▼</button>
               </div>
               <input type="checkbox" checked={on && !isDropped} disabled={isDropped} onChange={() => onToggle(name)} />
               {on && !isDropped && (
                 <input type="color" value={st.color || "#3b6ef5"}
-                  onChange={(e) => onStyleChange(name, { color: e.target.value })} title="Цвет" />
+                  onChange={(e) => onStyleChange(name, { color: e.target.value })} title={t("Цвет")} />
               )}
               {editing === name ? (
                 <input className="rename-input" autoFocus defaultValue={name}
@@ -164,7 +167,7 @@ export default function ColumnConfig({
               ) : (() => {
                 const sp = splitName(name);
                 return (
-                  <span className="col-name" title={`${name} — двойной клик, чтобы переименовать`}
+                  <span className="col-name" title={t("{name} — двойной клик, чтобы переименовать", { name })}
                     style={isDropped ? { textDecoration: "line-through", color: "var(--muted)" } : undefined}
                     onDoubleClick={() => !isDropped && setEditing(name)}>
                     {sp.file && <span className="col-file-tag">{sp.file}</span>}
@@ -175,19 +178,19 @@ export default function ColumnConfig({
               {!isDropped && (
                 <div className="norm-cell">
                   <label className={"norm-toggle" + (normed.has(name) ? " on" : "")}
-                    title="Нормализовать: делить на максимум за весь период">
+                    title={t("Нормализовать: делить на максимум за весь период")}>
                     <input type="checkbox" checked={normed.has(name)}
                       onChange={() => onToggleNormalize(name)} />
                     ÷max
                   </label>
                   {normed.has(name) && c && c.max != null && (
-                    <span className="norm-peak" title="пик ряда после нормировки">
-                      пик {fmtPeak(c.max)}
+                    <span className="norm-peak" title={t("пик ряда после нормировки")}>
+                      {t("пик {v}", { v: fmtPeak(c.max) })}
                     </span>
                   )}
                 </div>
               )}
-              <button className="trash" title={isDropped ? "вернуть колонку" : "удалить колонку"}
+              <button className="trash" title={isDropped ? t("вернуть колонку") : t("удалить колонку")}
                 onClick={() => onDropColumn(name)}
                 style={isDropped ? { color: "var(--accent)" } : undefined}>
                 {isDropped ? "↩" : "🗑"}
@@ -199,25 +202,25 @@ export default function ColumnConfig({
               <div className="style-controls" style={{ width: "100%", marginTop: 6 }}>
                 <select value={st.type || "line"} onChange={(e) => onStyleChange(name, { type: e.target.value })}
                   style={{ width: "auto", flex: "1 1 110px" }}>
-                  {CHART_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  {CHART_TYPES.map((ct) => <option key={ct.value} value={ct.value}>{t(ct.label)}</option>)}
                 </select>
                 <select value={st.dash || "solid"} onChange={(e) => onStyleChange(name, { dash: e.target.value })}
                   style={{ width: "auto", flex: "1 1 100px" }}>
-                  {DASH_OPTIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  {DASH_OPTIONS.map((d) => <option key={d.value} value={d.value}>{t(d.label)}</option>)}
                 </select>
-                <label className="inline small" title="Номер оси Y">
-                  ось
+                <label className="inline small" title={t("Номер оси Y")}>
+                  {t("ось")}
                   <select value={axisNum(st.axis)} onChange={(e) => onStyleChange(name, { axis: Number(e.target.value) })}
                     style={{ width: "auto" }}>
                     {axisOptions.map((a) => <option key={a} value={a}>{a}</option>)}
                   </select>
                 </label>
-                <label className="inline small" title="Толщина линии">
-                  тлщ
+                <label className="inline small" title={t("Толщина линии")}>
+                  {t("тлщ")}
                   <input type="number" min="0.5" max="6" step="0.5" value={st.width ?? 1.6}
                     onChange={(e) => onStyleChange(name, { width: Number(e.target.value) })} style={{ width: 52 }} />
                 </label>
-                <label className="inline small" title="Прозрачность">
+                <label className="inline small" title={t("Прозрачность")}>
                   α
                   <input type="number" min="0.1" max="1" step="0.1" value={st.opacity ?? 1}
                     onChange={(e) => onStyleChange(name, { opacity: Number(e.target.value) })} style={{ width: 52 }} />

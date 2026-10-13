@@ -252,6 +252,14 @@ table.blocks-table td:nth-child(2), table.blocks-table td:nth-child(3) { font-va
   .pill { padding: 5px 9px; font-size: 12px; }
 }
 
+/* ---- Language toggle ---- */
+.lang-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex: 0 0 auto; }
+.lang-toggle button {
+  border: none; background: var(--panel); color: var(--muted);
+  padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 0;
+}
+.lang-toggle button.active { background: var(--accent); color: #fff; }
+
 /* ---- Modal (export settings) ---- */
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 100;

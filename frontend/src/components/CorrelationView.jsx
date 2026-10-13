@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "plotly.js-dist-min";
+import { useT } from "../i18n";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -34,6 +35,7 @@ export default function CorrelationView({
   corr, seriesData, styles, pairX, pairY, onPairX, onPairY, columns,
   corrTarget, onCorrTarget, registerChart,
 }) {
+  const t = useT();
   // Each Plotly chart registers itself under a label so the export dialog can
   // list them all. No-op fallback keeps the view usable without the registry.
   const reg = (label) => (registerChart ? registerChart(label) : () => {});
@@ -81,7 +83,7 @@ export default function CorrelationView({
     const xs = sx.y, ys = sy.y;
     const reg = linreg(xs, ys);
     const traces = pairMode === "density" ? [{
-      x: xs, y: ys, type: "histogram2dcontour", name: "плотность",
+      x: xs, y: ys, type: "histogram2dcontour", name: t("плотность"),
       colorscale: "Blues", showscale: true, ncontours: 18,
       colorbar: { thickness: 10 },
     }] : [{
@@ -96,7 +98,7 @@ export default function CorrelationView({
       traces.push({
         x: [xmin, xmax],
         y: [reg.intercept + reg.slope * xmin, reg.intercept + reg.slope * xmax],
-        type: "scatter", mode: "lines", name: "регрессия",
+        type: "scatter", mode: "lines", name: t("регрессия"),
         line: { color: "#e0564d", width: 2, dash: "dash" },
         hoverinfo: "skip",
       });
@@ -109,7 +111,7 @@ export default function CorrelationView({
       font: { family: "-apple-system, Segoe UI, Roboto, sans-serif", size: 12, color: "#1c2530" },
     };
     return { traces, layout, reg };
-  }, [seriesData, pairX, pairY, pairMode]);
+  }, [seriesData, pairX, pairY, pairMode, t]);
 
   const splom = React.useMemo(() => {
     if (!showSplom || !seriesData) return null;
@@ -140,25 +142,25 @@ export default function CorrelationView({
 
   if (!corr) {
     return <div className="empty-state"><div className="big">🔗</div>
-      <div>Выберите минимум 2 колонки слева, чтобы посчитать корреляцию.</div></div>;
+      <div>{t("Выберите минимум 2 колонки слева, чтобы посчитать корреляцию.")}</div></div>;
   }
 
   return (
     <div>
-      <div className="section-title">Матрица корреляций ({corr.method})</div>
+      <div className="section-title">{t("Матрица корреляций")} ({corr.method})</div>
       <div className="card" style={{ marginBottom: 16 }}>
         <Plot data={heat.traces} layout={heat.layout} style={{ width: "100%" }}
-          useResizeHandler onInitialized={(_f, gd) => reg("Матрица корреляций")(gd)}
-          onUpdate={(_f, gd) => reg("Матрица корреляций")(gd)}
+          useResizeHandler onInitialized={(_f, gd) => reg(t("Матрица корреляций"))(gd)}
+          onUpdate={(_f, gd) => reg(t("Матрица корреляций"))(gd)}
           config={{ responsive: true, displaylogo: false,
             toImageButtonOptions: { format: "png", filename: "correlation", scale: 2 },
             modeBarButtonsToRemove: ["lasso2d", "select2d", "zoom2d", "pan2d"] }} />
       </div>
 
-      <div className="section-title">Корреляция с целевым параметром</div>
+      <div className="section-title">{t("Корреляция с целевым параметром")}</div>
       <div className="card" style={{ marginBottom: 16 }}>
         <label className="field" style={{ maxWidth: 340 }}>
-          <span>Целевой параметр</span>
+          <span>{t("Целевой параметр")}</span>
           <select value={corrTarget || ""} onChange={(e) => onCorrTarget(e.target.value)}>
             {corr.columns.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -166,7 +168,7 @@ export default function CorrelationView({
         {targetRows && (
           <table className="stats" style={{ marginTop: 6 }}>
             <thead>
-              <tr><th>Параметр</th><th>r ({corr.method})</th><th>|r|</th><th>Пар точек</th></tr>
+              <tr><th>{t("Параметр")}</th><th>r ({corr.method})</th><th>|r|</th><th>{t("Пар точек")}</th></tr>
             </thead>
             <tbody>
               {targetRows.map((row) => (
@@ -182,26 +184,26 @@ export default function CorrelationView({
         )}
       </div>
 
-      <div className="section-title">Зависимость: параметр от параметра</div>
+      <div className="section-title">{t("Зависимость: параметр от параметра")}</div>
       <div className="card">
         <div className="row" style={{ marginBottom: 10, alignItems: "flex-end" }}>
           <label className="field" style={{ marginBottom: 0 }}>
-            <span>Ось X</span>
+            <span>{t("Ось X")}</span>
             <select value={pairX || ""} onChange={(e) => onPairX(e.target.value)}>
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <label className="field" style={{ marginBottom: 0 }}>
-            <span>Ось Y</span>
+            <span>{t("Ось Y")}</span>
             <select value={pairY || ""} onChange={(e) => onPairY(e.target.value)}>
               {columns.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
           <div className="pill-toggle" style={{ flex: "0 0 auto", paddingBottom: 4 }}>
             <span className={"pill" + (pairMode === "scatter" ? " active" : "")}
-              onClick={() => setPairMode("scatter")}>Точки</span>
+              onClick={() => setPairMode("scatter")}>{t("Точки")}</span>
             <span className={"pill" + (pairMode === "density" ? " active" : "")}
-              onClick={() => setPairMode("density")}>Плотность</span>
+              onClick={() => setPairMode("density")}>{t("Плотность")}</span>
           </div>
           <div style={{ flex: "0 0 auto", paddingBottom: 4 }}>
             {rValue != null && (
@@ -213,34 +215,34 @@ export default function CorrelationView({
           </div>
         </div>
         {scatter?.unavailable ? (
-          <div className="small muted">Scatter недоступен для даунсэмплированных данных.</div>
+          <div className="small muted">{t("Scatter недоступен для даунсэмплированных данных.")}</div>
         ) : scatter ? (
           <Plot data={scatter.traces} layout={scatter.layout} style={{ width: "100%" }}
             useResizeHandler
-            onInitialized={(_f, gd) => reg("Зависимость X×Y")(gd)}
-            onUpdate={(_f, gd) => reg("Зависимость X×Y")(gd)}
+            onInitialized={(_f, gd) => reg(t("Зависимость X×Y"))(gd)}
+            onUpdate={(_f, gd) => reg(t("Зависимость X×Y"))(gd)}
             config={{ responsive: true, displaylogo: false,
               modeBarButtonsToRemove: ["lasso2d", "select2d"] }} />
         ) : (
-          <div className="small muted">Выберите две колонки.</div>
+          <div className="small muted">{t("Выберите две колонки.")}</div>
         )}
       </div>
 
-      <div className="section-title" style={{ marginTop: 16 }}>Матрица рассеяния (SPLOM)</div>
+      <div className="section-title" style={{ marginTop: 16 }}>{t("Матрица рассеяния (SPLOM)")}</div>
       <div className="card">
         {!showSplom ? (
-          <button onClick={() => setShowSplom(true)}>Показать матрицу рассеяния</button>
+          <button onClick={() => setShowSplom(true)}>{t("Показать матрицу рассеяния")}</button>
         ) : splom?.unavailable ? (
-          <div className="small muted">Нужно ≥2 колонок без даунсэмплинга.</div>
+          <div className="small muted">{t("Нужно ≥2 колонок без даунсэмплинга.")}</div>
         ) : splom ? (
           <>
             <div className="btn-row" style={{ marginBottom: 8 }}>
-              <button className="ghost small" onClick={() => setShowSplom(false)}>Скрыть</button>
+              <button className="ghost small" onClick={() => setShowSplom(false)}>{t("Скрыть")}</button>
             </div>
             <Plot data={splom.traces} layout={splom.layout} style={{ width: "100%" }}
               useResizeHandler
-              onInitialized={(_f, gd) => reg("Матрица рассеяния (SPLOM)")(gd)}
-              onUpdate={(_f, gd) => reg("Матрица рассеяния (SPLOM)")(gd)}
+              onInitialized={(_f, gd) => reg(t("Матрица рассеяния (SPLOM)"))(gd)}
+              onUpdate={(_f, gd) => reg(t("Матрица рассеяния (SPLOM)"))(gd)}
               config={{ responsive: true, displaylogo: false }} />
           </>
         ) : null}

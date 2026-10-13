@@ -21,7 +21,9 @@ import ExportBar from "./components/ExportBar";
 import ExportDialog from "./components/ExportDialog";
 import WindowControls from "./components/WindowControls";
 import Annotations from "./components/Annotations";
+import LangToggle from "./components/LangToggle";
 import { downloadChartImage } from "./lib/exportImage";
+import { useT, useNum } from "./i18n";
 
 function defaultStyle(i) {
   return { enabled: false, color: PALETTE[i % PALETTE.length], type: "line",
@@ -29,6 +31,8 @@ function defaultStyle(i) {
 }
 
 export default function App() {
+  const t = useT();
+  const nf = useNum();
   const [error, setError] = useState(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [upload, setUpload] = useState(null);         // active dataset {id, filename}
@@ -210,7 +214,7 @@ export default function App() {
     setTableBusy(false); setCombineBusy(false); setBusyExport(false);
   };
   const onResetAll = async () => {
-    if (!window.confirm("Сбросить всё: остановить расчёты и удалить загруженные файлы?")) return;
+    if (!window.confirm(t("Сбросить всё: остановить расчёты и удалить загруженные файлы?"))) return;
     onStop();
     const ids = [...sources.map((s) => s.id), combinedId].filter(Boolean);
     try { if (ids.length) await api.reset({ ids }); } catch { /* ignore */ }
@@ -226,7 +230,7 @@ export default function App() {
   };
 
   const labelFor = (filename) =>
-    (filename || "файл").replace(/\.[^.]+$/, "").slice(0, 24);
+    (filename || t("файл")).replace(/\.[^.]+$/, "").slice(0, 24);
   const makeSource = (res) => ({
     id: res.id, filename: res.filename, sheets: res.sheets || [],
     sheet: res.sheets?.[0] || null, headerRow: res.preview?.suggested_header ?? 0,
@@ -248,7 +252,7 @@ export default function App() {
 
   // -------- Add another file (up to 5) --------
   const onAddFile = useCallback(async (file) => {
-    if (sources.length >= 5) { setError("Максимум 5 файлов"); return; }
+    if (sources.length >= 5) { setError(t("Максимум 5 файлов")); return; }
     setError(null); setUploadBusy(true);
     try {
       const res = await api.uploadFile(file);
@@ -314,7 +318,7 @@ export default function App() {
         });
         setCombinedId(res.id);
         setUploadSheets([]); setSheet(null); setHeaderRow(0); setPreview(null);
-        setUpload({ id: res.id, filename: `Объединено (${sources.length})` });
+        setUpload({ id: res.id, filename: t("Объединено ({n})", { n: sources.length }) });
         autoEnabled.current = res.id;
         autoEmptied.current = null;
       } catch (e) { setError(String(e.message || e)); }
@@ -760,14 +764,14 @@ export default function App() {
         if (i < items.length - 1) await new Promise((r) => setTimeout(r, 350));
       }
     } catch (e) {
-      setError("Не удалось сохранить изображение: " + String(e?.message || e));
+      setError(t("Не удалось сохранить изображение: {msg}", { msg: String(e?.message || e) }));
     }
   };
 
   // -------- Presets (download/upload JSON) --------
   const onSavePreset = () => {
     const preset = {
-      _type: "figures-preset", version: 1,
+      _type: "chronoscope-preset", version: 1,
       sheet, header_row: headerRow, x_col: xCol, y_cols: enabledCols,
       styles, order, axis_count: axisCount,
       resample, anomaly, anomaly_style: anomalyStyle, rolling, flags, annotations,
@@ -777,12 +781,13 @@ export default function App() {
       sort_x: sortX, time_window: timeWindow,
     };
     downloadBlob(new Blob([JSON.stringify(preset, null, 2)], { type: "application/json" }),
-      "figures-preset.json");
+      "chronoscope-preset.json");
   };
   const onLoadPreset = async (file) => {
     try {
       const p = JSON.parse(await file.text());
-      if (p._type !== "figures-preset") throw new Error("Не похоже на файл пресета");
+      if (p._type !== "chronoscope-preset" && p._type !== "figures-preset")
+        throw new Error(t("Не похоже на файл пресета"));
       if (typeof p.header_row === "number") setHeaderRow(p.header_row);
       if (p.sheet !== undefined) setSheet(p.sheet);
       if (p.x_col) setXCol(p.x_col);
@@ -812,33 +817,33 @@ export default function App() {
       if (p.time_window && typeof p.time_window === "object") setTimeWindow(p.time_window);
       if (Array.isArray(p.annotations)) setAnnotations(p.annotations);
       setError(null);
-    } catch (e) { setError("Ошибка пресета: " + String(e.message || e)); }
+    } catch (e) { setError(t("Ошибка пресета: {msg}", { msg: String(e.message || e) })); }
   };
 
   return (
     <div className={"app" + (sidebarOpen ? "" : " sidebar-collapsed")}>
       {!sidebarOpen && (
-        <button className="expand-btn" title="Развернуть настройки"
+        <button className="expand-btn" title={t("Развернуть настройки")}
           onClick={() => setSidebarOpen(true)}>☰</button>
       )}
       <aside className="sidebar" style={{ "--sb-width": sidebarWidth + "px" }}>
-        <div className="sidebar-resize" title="Потяните, чтобы изменить ширину"
+        <div className="sidebar-resize" title={t("Потяните, чтобы изменить ширину")}
           onMouseDown={startSidebarResize} />
         <div className="sidebar-head">
           <div className="brand">
             <div className="logo">◧</div>
-            <div><h1>Figures</h1></div>
+            <div><h1>Chronoscope</h1></div>
           </div>
-          <button className="collapse-btn" title="Свернуть панель"
+          <button className="collapse-btn" title={t("Свернуть панель")}
             onClick={() => setSidebarOpen(false)}>⟨</button>
         </div>
-        <p className="sub">Первичный анализ временных рядов</p>
+        <p className="sub">{t("Первичный анализ временных рядов")}</p>
 
         {error && <div className="error">{error}</div>}
 
         {sources.length > 0 && (
           <div className="section">
-            <div className="section-title">1 · Файлы данных ({sources.length}/5)</div>
+            <div className="section-title">{t("1 · Файлы данных ({n}/5)", { n: sources.length })}</div>
             {sources.map((s, i) => (
               <div key={s.id}
                 className={"file-row" + (sources.length > 1 && i === configFileIdx ? " active" : "")}
@@ -846,11 +851,11 @@ export default function App() {
                 title={s.filename}>
                 <span className="file-dot" style={{ background: PALETTE[i % PALETTE.length] }} />
                 <span className="file-name">{s.filename}</span>
-                <button className="trash" title="убрать файл"
+                <button className="trash" title={t("убрать файл")}
                   onClick={(e) => { e.stopPropagation(); removeSource(i); }}>✕</button>
               </div>
             ))}
-            {combineBusy && <div className="small muted" style={{ margin: "4px 0" }}><span className="spinner" /> объединение…</div>}
+            {combineBusy && <div className="small muted" style={{ margin: "4px 0" }}><span className="spinner" /> {t("объединение…")}</div>}
           </div>
         )}
 
@@ -869,18 +874,17 @@ export default function App() {
 
         {sources.length > 1 && sources[configFileIdx] && (
           <label className="field" style={{ margin: "10px 0 0" }}>
-            <span>Столбец времени для «{sources[configFileIdx].label}»</span>
+            <span>{t("Столбец времени для «{label}»", { label: sources[configFileIdx].label })}</span>
             <select
               value={sources[configFileIdx].xCol || ""}
               onChange={(e) => updateSource(configFileIdx, { xCol: e.target.value || null })}>
-              <option value="">Авто (определить самому)</option>
+              <option value="">{t("Авто (определить самому)")}</option>
               {sourceColumns(sources[configFileIdx]).map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
             <span className="small muted" style={{ marginTop: 4 }}>
-              По этому столбцу файл встаёт на общую ось времени. Если объединение
-              даёт сплошь NaN — выберите правильный столбец вручную.
+              {t("По этому столбцу файл встаёт на общую ось времени. Если объединение даёт сплошь NaN — выберите правильный столбец вручную.")}
             </span>
           </label>
         )}
@@ -925,23 +929,26 @@ export default function App() {
 
       <main className="main">
         <div className="main-header">
-          <h2>
-            {upload ? upload.filename : "Загрузите файл, чтобы начать"}
-            {seriesBusy && <>&nbsp;<span className="spinner" /></>}
-          </h2>
-          {inspectData && (
-            <span className="muted small">
-              {inspectData.nrows.toLocaleString("ru")} строк · {inspectData.columns.length} колонок
-              {enabledCols.length ? ` · выбрано ${enabledCols.length}` : ""}
-            </span>
-          )}
+          <div className="inline" style={{ alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+            <h2>
+              {upload ? upload.filename : t("Загрузите файл, чтобы начать")}
+              {seriesBusy && <>&nbsp;<span className="spinner" /></>}
+            </h2>
+            {inspectData && (
+              <span className="muted small">
+                {t("{rows} строк · {cols} колонок", { rows: nf(inspectData.nrows), cols: inspectData.columns.length })}
+                {enabledCols.length ? t(" · выбрано {n}", { n: enabledCols.length }) : ""}
+              </span>
+            )}
+          </div>
+          <LangToggle />
         </div>
 
         {!upload && (
           <div className="card empty-state">
             <div className="big">📈</div>
-            <div>Загрузите CSV или Excel слева.<br />
-              Выберите строку-шапку, колонки, цвета и тип графиков — всё обновится автоматически.</div>
+            <div>{t("Загрузите CSV или Excel слева.")}<br />
+              {t("Выберите строку-шапку, колонки, цвета и тип графиков — всё обновится автоматически.")}</div>
           </div>
         )}
 
@@ -959,25 +966,25 @@ export default function App() {
                 {VIEW_MODES.map((m) => (
                   <span key={m.value}
                     className={"pill" + (viewMode === m.value ? " active" : "")}
-                    onClick={() => setViewMode(m.value)}>{m.label}</span>
+                    onClick={() => setViewMode(m.value)}>{t(m.label)}</span>
                 ))}
               </div>
               <div className="btn-row" style={{ alignItems: "center" }}>
-                <label className="inline small" title="Не пересчитывать график на каждое изменение — только по кнопке">
+                <label className="inline small" title={t("Не пересчитывать график на каждое изменение — только по кнопке")}>
                   <input type="checkbox" checked={manualMode}
                     onChange={(e) => { setManualMode(e.target.checked); if (!e.target.checked) onRecompute(); }} />
-                  ручной расчёт
+                  {t("ручной расчёт")}
                 </label>
                 {manualMode && (
                   <button className={"small" + (hasPending ? " primary" : "")}
-                    onClick={onRecompute} disabled={!hasPending} title="Пересчитать график">
-                    ▶ Пересчитать{hasPending ? " •" : ""}
+                    onClick={onRecompute} disabled={!hasPending} title={t("Пересчитать график")}>
+                    {t("▶ Пересчитать")}{hasPending ? " •" : ""}
                   </button>
                 )}
-                <button className="ghost small" onClick={onStop} title="Остановить текущий расчёт (файлы и пресеты останутся)">■ Стоп</button>
-                <button className="ghost small" onClick={() => setRefreshKey((k) => k + 1)} title="Перерисовать график">⟳ Обновить</button>
-                <button className="ghost small" onClick={onResetAll} title="Остановить всё и удалить файлы"
-                  style={{ color: "var(--danger)" }}>🗑 Сбросить всё</button>
+                <button className="ghost small" onClick={onStop} title={t("Остановить текущий расчёт (файлы и пресеты останутся)")}>{t("■ Стоп")}</button>
+                <button className="ghost small" onClick={() => setRefreshKey((k) => k + 1)} title={t("Перерисовать график")}>{t("⟳ Обновить")}</button>
+                <button className="ghost small" onClick={onResetAll} title={t("Остановить всё и удалить файлы")}
+                  style={{ color: "var(--danger)" }}>{t("🗑 Сбросить всё")}</button>
               </div>
             </div>
 
@@ -993,16 +1000,16 @@ export default function App() {
                     data={seriesData} styles={styles} flags={flags}
                     anomalyStyle={anomalyStyle} rolling={rolling}
                     annotations={annotations} onAddAnnotation={addAnnotation}
-                    onGraphDiv={registerChart("Временной ряд")}
+                    onGraphDiv={registerChart(t("Временной ряд"))}
                   />
                 </div>
                 <div className="section">
-                  <div className="section-title">Статистика по колонкам</div>
+                  <div className="section-title">{t("Статистика по колонкам")}</div>
                   <StatsTable data={seriesData} styles={styles} totalRows={inspectData.nrows}
                     onExportStats={onExportStats} busyExport={busyExport} />
                 </div>
                 <div className="section">
-                  <div className="section-title">Ручные отметки</div>
+                  <div className="section-title">{t("Ручные отметки")}</div>
                   <div className="card">
                     <Annotations
                       annotations={annotations}
@@ -1021,12 +1028,12 @@ export default function App() {
                     {DIST_TYPES.map((d) => (
                       <span key={d.value}
                         className={"pill" + (distType === d.value ? " active" : "")}
-                        onClick={() => setDistType(d.value)}>{d.label}</span>
+                        onClick={() => setDistType(d.value)}>{t(d.label)}</span>
                     ))}
                   </div>
                   {distType === "histogram" && (
-                    <label className="inline small" title="Число корзин">
-                      корзины
+                    <label className="inline small" title={t("Число корзин")}>
+                      {t("корзины")}
                       <input type="number" min="5" max="200" step="5" value={bins}
                         onChange={(e) => setBins(Number(e.target.value))} style={{ width: 70 }} />
                     </label>
@@ -1036,11 +1043,11 @@ export default function App() {
                   <DistributionChart
                     key={`dist-${refreshKey}`}
                     data={seriesData} styles={styles} distType={distType} bins={bins}
-                    onGraphDiv={registerChart("Распределение")}
+                    onGraphDiv={registerChart(t("Распределение"))}
                   />
                 </div>
                 <div className="section">
-                  <div className="section-title">Статистика по колонкам</div>
+                  <div className="section-title">{t("Статистика по колонкам")}</div>
                   <StatsTable data={seriesData} styles={styles} totalRows={inspectData.nrows}
                     onExportStats={onExportStats} busyExport={busyExport} />
                 </div>
@@ -1051,10 +1058,10 @@ export default function App() {
               <>
                 <div className="btn-row" style={{ marginBottom: 12, alignItems: "center" }}>
                   <label className="inline small">
-                    метод
+                    {t("метод")}
                     <select value={corrMethod} onChange={(e) => setCorrMethod(e.target.value)}
                       style={{ width: "auto" }}>
-                      {CORR_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+                      {CORR_METHODS.map((m) => <option key={m.value} value={m.value}>{t(m.label)}</option>)}
                     </select>
                   </label>
                   {corrBusy && <span className="spinner" />}
@@ -1077,12 +1084,12 @@ export default function App() {
                     {SPECTRUM_METHODS.map((m) => (
                       <span key={m.value}
                         className={"pill" + (spectrumMethod === m.value ? " active" : "")}
-                        onClick={() => setSpectrumMethod(m.value)}>{m.label}</span>
+                        onClick={() => setSpectrumMethod(m.value)}>{t(m.label)}</span>
                     ))}
                   </div>
                   {spectrumMethod === "acf" && (
-                    <label className="inline small" title="Максимальный лаг">
-                      макс. лаг
+                    <label className="inline small" title={t("Максимальный лаг")}>
+                      {t("макс. лаг")}
                       <input type="number" min="10" step="10" value={spectrumMaxLag}
                         onChange={(e) => setSpectrumMaxLag(Math.max(10, Number(e.target.value)))}
                         style={{ width: 74 }} />
@@ -1092,7 +1099,7 @@ export default function App() {
                 </div>
                 <div className="card">
                   <SpectrumView key={`spec-${refreshKey}`} spectrum={spectrumData} styles={styles}
-                    onGraphDiv={registerChart("Спектр · ACF")} />
+                    onGraphDiv={registerChart(t("Спектр · ACF"))} />
                 </div>
               </>
             ) : <EnableHint />)}
@@ -1103,7 +1110,7 @@ export default function App() {
                 seriesData={seriesData} styles={styles} columns={enabledCols}
                 dirCol={windDir} magCol={windMag}
                 onDirCol={setWindDir} onMagCol={setWindMag}
-                onGraphDiv={registerChart("Роза ветров")}
+                onGraphDiv={registerChart(t("Роза ветров"))}
               />
             ) : <EnableHint />)}
 
@@ -1114,13 +1121,13 @@ export default function App() {
                     {MISSING_KINDS.map((k) => (
                       <span key={k.value}
                         className={"pill" + (missingKind === k.value ? " active" : "")}
-                        onClick={() => setMissingKind(k.value)}>{k.label}</span>
+                        onClick={() => setMissingKind(k.value)}>{t(k.label)}</span>
                     ))}
                   </div>
                   {missingBusy && <span className="spinner" />}
                 </div>
                 <MissingMapView key={`miss-${refreshKey}`} missing={missingData}
-                  onGraphDiv={registerChart("Карта пропусков")} />
+                  onGraphDiv={registerChart(t("Карта пропусков"))} />
               </>
             )}
 
@@ -1155,7 +1162,7 @@ export default function App() {
                 {sources.length > 1 && (
                   <div className="pill-toggle" style={{ marginBottom: 12 }}>
                     <span className={"pill" + (tableSource === "combined" ? " active" : "")}
-                      onClick={() => { setTableSource("combined"); setTablePage(0); }}>Общая</span>
+                      onClick={() => { setTableSource("combined"); setTablePage(0); }}>{t("Общая")}</span>
                     {sources.map((s, i) => (
                       <span key={s.id} className={"pill" + (tableSource === String(i) ? " active" : "")}
                         onClick={() => { setTableSource(String(i)); setTablePage(0); }} title={s.filename}>{s.label}</span>
@@ -1190,10 +1197,11 @@ export default function App() {
 }
 
 function EnableHint() {
+  const t = useT();
   return (
     <div className="card empty-state">
       <div className="big">🎚</div>
-      <div>Отметьте хотя бы одну колонку слева (раздел «Ось X и колонки»).</div>
+      <div>{t("Отметьте хотя бы одну колонку слева (раздел «Ось X и колонки»).")}</div>
     </div>
   );
 }

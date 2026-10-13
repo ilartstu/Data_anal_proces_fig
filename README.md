@@ -1,120 +1,189 @@
-# Figures — исследователь временных рядов
+<div align="center">
 
-Веб-приложение для первичного анализа временных рядов из CSV / Excel:
-загрузка файла → выбор строки-шапки → выбор колонок, цветов и типов графиков →
-интерактивный график с подсветкой `NaN`, нулей и аномалий, ручными отметками и
-экспортом данных, картинок и пресетов настроек.
+<img src="assets/logo.png" alt="Chronoscope" width="96" height="96" />
 
-## Стек
+# Chronoscope
 
-| Слой      | Технология                                  |
-|-----------|---------------------------------------------|
-| Backend   | FastAPI + pandas/numpy (парсинг и анализ)   |
-| Frontend  | React (Vite) + Plotly.js                    |
-| Упаковка  | Docker Compose (2 сервиса, nginx-прокси)    |
+**A private, no-code workbench for exploring time-series data.**
+Drop in a CSV or Excel file and get interactive charts, anomaly detection,
+correlations, spectra and data cleaning — all in your browser, all on your own
+machine.
 
-## Запуск
+[![License](https://img.shields.io/github/license/ilartstu/chronoscope)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/ilartstu/chronoscope?style=social)](https://github.com/ilartstu/chronoscope/stargazers)
+![Backend](https://img.shields.io/badge/backend-FastAPI-009688)
+![Frontend](https://img.shields.io/badge/frontend-React%20%2B%20Plotly-61dafb)
+![Runs on](https://img.shields.io/badge/run-Docker%20Compose-2496ED)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](#contributing)
+
+<a href="assets/hero.mp4"><img src="assets/demo.gif" alt="Chronoscope demo" width="820" /></a>
+
+<sub>▶ <a href="assets/hero.mp4">Watch the full 2-minute demo</a></sub>
+
+</div>
+
+---
+
+## Why Chronoscope?
+
+- 🔒 **Private by design.** Your data **never leaves your machine.** Chronoscope runs
+  locally (or on your own server) with **no sign-up and no cloud.** Uploaded files
+  live in a local Docker volume, expire automatically, and the original file on
+  disk is **never modified** — all edits apply to a non-destructive working copy.
+- ⚡ **No code required.** Upload a file and you are looking at a chart in seconds.
+  No notebook, no pandas boilerplate, no plotting scripts.
+- 🔬 **Actually deep.** Multi-file comparison, anomaly detection, correlation,
+  FFT/ACF spectra, wind rose, missing-data maps, interpolation, normalization and
+  high-DPI figure export — not just a line chart.
+
+Built for researchers, engineers and anyone who works with sensor logs, forecasts,
+energy/weather data or any CSV with a time column — and would rather not upload it
+to someone else's server.
+
+## Quick start
+
+You only need [Docker](https://www.docker.com/).
 
 ```bash
-make up            # или: docker compose up --build -d
+git clone https://github.com/ilartstu/chronoscope.git
+cd chronoscope
+docker compose up --build -d      # or: make up
 ```
 
-Затем откройте **http://localhost:8080**.
+Then open **http://localhost:8080**. That's it — no account, nothing sent anywhere.
 
-Развёртывание на сервере (по IP, без домена) и все команды — в [DEPLOY.md](DEPLOY.md).
-Список команд: `make help`.
+Stop it with `docker compose down` (add `-v` to also wipe uploaded files).
+Deploying on a server by IP (no domain) is documented in [DEPLOY.md](DEPLOY.md).
 
-- Frontend (nginx) — на `:8080`, проксирует `/api/*` в backend.
-- Backend (FastAPI) — на `:8000`, интерактивная документация: `http://localhost:8000/docs`.
+## Features
 
-Остановить: `docker compose down` (данные загрузок лежат в томе `uploads`,
-удалить вместе с ними — `docker compose down -v`).
+**Load almost anything**
+- CSV / TSV / Excel (`.xlsx`, `.xls`), robust to messy, ragged or offset files.
+- **Pick the header row** with one click; shifted formats (e.g. Open-Meteo, where
+  the header is on line 4) are auto-detected.
+- **Up to 5 files at once**, merged on their time axis (outer join) so you can
+  compare measurements vs. forecasts on a single chart. Each file's time column
+  can be auto-detected or chosen manually.
 
-## Возможности
+**Shape your view**
+- Choose the X axis (time auto-detected) and any number of Y columns, each with its
+  own colour, chart type, line style, width, opacity and left/right Y axis.
+- **1–6 Y axes** with an "auto-axes" button that groups series by scale, plus an
+  option to align zero across all axes.
+- Reorder series by **drag & drop** or arrows to control draw order.
+- **Time window:** show only the last/first *N* days or points, or a span from a
+  chosen date — handy for zooming into recent data on large files.
+- **Normalization:** divide selected columns by their max — either each by its own
+  max (compare shapes) or all by a **shared max** (keep amplitude differences
+  visible). Also doubles as a quick way to anonymize absolute scales.
 
-- **Несколько файлов (до 5).** Загрузите 2+ файла (Excel/CSV) — они объединяются
-  по времени, колонки в панели помечаются именем файла (`файл · параметр`).
-  Можно строить параметры из разных файлов на одном графике (сравнение
-  предсказаний). В режиме «Таблица» — общая объединённая таблица и таблицы по
-  каждому файлу отдельно.
-- **Гибкая шапка.** Первые строки файла показываются «как есть» — кликом
-  выбираете строку-заголовок; для смещённых форматов (Open-Meteo: шапка на 4-й
-  строке) она определяется автоматически. Устойчиво к «рваным» строкам.
-- **Выбор колонок** для оси X (время определяется автоматически) и любого числа
-  колонок Y; у каждой — свой цвет, тип, стиль линии, толщина, прозрачность и
-  левая/правая ось Y.
-- **Порядок и наложение.** Колонки можно перетаскивать мышью или двигать
-  стрелками ▲▼ — порядок задаёт, какой график поверх какого.
-- **Режимы просмотра:**
-  - *Временной ряд* — линия / ступенчатый / точки / линия+точки / область / столбцы;
-    опционально скользящее среднее ± σ.
-  - *Распределение* — гистограмма, box-plot, violin, ECDF, Q-Q (норм.).
-  - *Корреляция* — тепловая карта (Пирсон / Спирмен / Кендалл), таблица корреляций
-    с целевым параметром, scatter/2D-плотность «параметр от параметра» с r и
-    регрессией, матрица рассеяния (SPLOM).
-  - *Спектр / ACF* — периодограмма FFT (пики = периоды) и автокорреляция.
-  - *Роза ветров* — полярное распределение по направлению со стеком по величине.
-  - *Пропуски* — тепловая карта долей NaN/нулей по всем колонкам во времени.
-  - *Длинные блоки* — таблица длительных периодов подряд идущих NaN и/или нулей
-    (порог длины, выбор параметра или «любой»); блоки можно помечать корзиной.
-  - *Выбросы* — список выбросов (z-score / IQR / diff / скользящая медиана) с
-    удалением ненужных (→ NaN).
-  - *Таблица / правки* — грид рабочей копии с мусоркой на каждой колонке и строке,
-    постраничный просмотр; удаления сразу отражаются во всех режимах.
-- **Очистка данных:** линейная интерполяция выбросов и коротких пропусков
-  NaN/нулей (границы длины настраиваются, по умолчанию 5 < длина ≤ 24), сортировка
-  по оси времени. Всё — часть недеструктивной рабочей копии.
-- **Недеструктивная рабочая копия.** Все правки (удаление колонок/строк/блоков,
-  **переименование колонок**) — набор в состоянии приложения. Оригинальный файл
-  на диске **никогда не меняется**; правки применяются во всех режимах и
-  «впекаются» только в скачиваемый файл. Править можно и в разделе
-  «2 · строка-шапка» (мусорки на колонках/строках, двойной клик по заголовку —
-  переименовать), и в режиме «Таблица / правки» — изменения синхронны везде.
-- **Сворачиваемая панель** (кнопка ⟨/☰) и адаптив под узкое окно и мобильные:
-  загрузил данные — сразу видишь график на всю ширину.
-- **Ручное обновление графика** (кнопка ⟳), авто-перестроение осей и
-  совмещение нуля всех осей Y на одной высоте.
-- **Настраиваемое число осей Y (1–6).** Кнопка «Авто-оси» группирует ряды по
-  масштабу на заданное число осей; подписи осей показывают, какой параметр где.
-- **Экспорт статистики** по колонкам (CSV / Excel) прямо с сайта, с числом строк.
-- **Различение `NaN` и нулей.** Пропуски и нулевые участки подсвечиваются
-  отдельными полосами — сразу видно, где реальный ноль, а где нет данных.
-- **Детект аномалий:** z-score, IQR, скачок разности соседних точек,
-  отклонение от скользящей медианы. Способ отметки настраивается: точка /
-  жирная точка / кружок / фоновая полоса, с выбором цвета и размера.
-- **Ручные отметки.** Клик по точке графика ставит подписанную метку.
-- **Ресемплинг** по времени (час/день/неделя/месяц) с агрегацией.
-- **Экспорт:** данные (CSV/Excel), график (PNG/SVG/HTML), а также **пресет
-  настроек в JSON-файл**, который можно скачать и позже загрузить обратно.
+**Analyze**
+- **Time series** — line / step / markers / line+markers / area / bars, with
+  optional rolling mean ± σ.
+- **Distribution** — histogram, box plot, violin, ECDF, Q-Q.
+- **Correlation** — heatmap (Pearson / Spearman / Kendall), correlation-with-target
+  table, scatter / 2-D density with regression, and a scatter-plot matrix (SPLOM).
+- **Spectrum / ACF** — FFT periodogram (peaks = periods) and autocorrelation.
+- **Wind rose** — polar distribution by direction, stacked by magnitude.
+- **Missing map** — heatmap of NaN / zero fractions across all columns over time.
+- **Long blocks** — table of long runs of consecutive NaNs / zeros to clean up.
+- **Outliers** — list by z-score / IQR / diff / rolling-median, with one-click removal.
 
-## Структура
+**Clean & edit (non-destructive)**
+- Drop columns, rows and blocks; rename columns; blank out bad cells; linearly
+  interpolate short gaps and outliers; sort by time.
+- Every edit is a working copy — the original file is untouched and changes are only
+  baked into the file you download. The **Table** view mirrors every choice you make
+  on the left (selected columns, X axis, normalization) and updates live.
 
-```
-1_figures_proj/
-├── docker-compose.yml
-├── backend/            # FastAPI
-│   ├── app/
-│   │   ├── main.py       # эндпоинты: upload / inspect / series / export
-│   │   ├── parsing.py    # чтение CSV/Excel, выбор строки-шапки
-│   │   ├── analysis.py   # статистика, NaN/нулевые участки, аномалии
-│   │   ├── storage.py    # временное хранение загруженных файлов
-│   │   └── models.py     # схемы запросов
-│   └── Dockerfile
-└── frontend/           # React + Vite + Plotly
-    ├── src/
-    │   ├── App.jsx        # оркестрация состояния
-    │   └── components/    # Uploader, HeaderPicker, ColumnConfig, Chart, ...
-    ├── nginx.conf
-    └── Dockerfile
-```
+**Export**
+- Data (CSV / Excel) and per-column statistics.
+- Charts as **PNG / JPEG / SVG** with a dedicated dialog: pick which charts to save,
+  aspect ratio, exact pixel size, **DPI**, and quality presets (HD / Full HD / 2K /
+  4K) — rendered crisply as true vectors, so higher quality never shrinks the labels.
+- Save all your settings as a **JSON preset** and reload it later.
 
-## Разработка без Docker (опционально)
+## Screenshots
+
+> UI screenshots coming soon. Below: two data sources (sensor vs. forecast) overlaid
+> on a single time-series chart.
+
+<p align="center">
+  <img src="assets/example-insolation.png" alt="Insolation: measured vs. forecast" width="48%" />
+  <img src="assets/example-temperature.png" alt="Air temperature: two sources" width="48%" />
+</p>
+
+## Use cases
+
+- **Energy & weather:** solar/wind production, insolation, meteo logs; compare
+  measured sensor data against saved forecasts (Open-Meteo & friends).
+- **Research & lab work:** quick first look at any experimental time series —
+  gaps, outliers, periodicity, correlations — before writing a single line of code.
+- **Data cleaning:** find and remove long NaN/zero runs and outliers, then export a
+  cleaned file.
+
+## Tech stack
+
+| Layer    | Technology                                   |
+|----------|----------------------------------------------|
+| Backend  | FastAPI + pandas / numpy (parsing & analysis) |
+| Frontend | React (Vite) + Plotly.js                     |
+| Delivery | Docker Compose (2 services, nginx reverse proxy) |
+
+- Frontend (nginx) on `:8080`, proxies `/api/*` to the backend.
+- Backend (FastAPI) on `:8000`, interactive docs at `http://localhost:8000/docs`.
+
+## Local development (without Docker)
 
 ```bash
 # backend
 cd backend && pip install -r requirements.txt
 DATA_DIR=./data uvicorn app.main:app --reload --port 8000
 
-# frontend (нужен Node 18+)
+# frontend (needs Node 18+)
 cd frontend && npm install && npm run dev   # http://localhost:5173
 ```
+
+## Project structure
+
+```
+chronoscope/
+├── docker-compose.yml
+├── backend/            # FastAPI
+│   └── app/
+│       ├── main.py       # endpoints: upload / inspect / series / combine / export
+│       ├── parsing.py    # CSV/Excel reading, header-row detection
+│       ├── analysis.py   # stats, NaN/zero regions, anomalies
+│       ├── storage.py    # temporary storage of uploads
+│       └── models.py     # request schemas
+└── frontend/           # React + Vite + Plotly
+    └── src/
+        ├── App.jsx        # state orchestration
+        └── components/    # Uploader, HeaderPicker, ColumnConfig, Chart, ...
+```
+
+## Roadmap
+
+Chronoscope is actively evolving. Planned / in progress:
+
+- 🎨 Cleaner main-screen layout and easier navigation between views.
+- 🌙 Dark theme.
+- 🧭 Visual and UX polish across the analysis modes.
+- 🐛 Ongoing bug fixes as it gets real-world use.
+
+Ideas and feedback are very welcome — open an issue.
+
+## Contributing
+
+Contributions are welcome! Open an issue to discuss a bug or idea, or send a pull
+request. If Chronoscope is useful to you, a ⭐ really helps others find it.
+
+## License
+
+Released under the license in the [LICENSE](LICENSE) file.
+
+---
+
+<div align="center">
+Made by <a href="https://github.com/ilartstu">ilartstu</a>
+</div>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useT } from "../i18n";
 
 // Raw grid of the first rows. Click a row to mark it as the header row; rows
 // above it are struck through. On the header row, each cell can be renamed
@@ -7,6 +8,7 @@ export default function HeaderPicker({
   preview, headerRow, onPick, sheets, sheet, onSheet, resolved, multi,
   dropColumns, dropRows, renames, onDropColumn, onDropRow, onRename,
 }) {
+  const t = useT();
   const [editCol, setEditCol] = useState(null);
   if (!preview) return null;
   const rows = preview.rows || [];
@@ -28,11 +30,11 @@ export default function HeaderPicker({
 
   return (
     <div className="section">
-      <div className="section-title">2 · Строка-шапка</div>
+      <div className="section-title">{t("2 · Строка-шапка")}</div>
 
       {sheets && sheets.length > 0 && (
         <label className="field">
-          <span>Лист Excel</span>
+          <span>{t("Лист Excel")}</span>
           <select value={sheet || ""} onChange={(e) => onSheet(e.target.value)}>
             {sheets.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -41,8 +43,8 @@ export default function HeaderPicker({
 
       <div className="hint" style={{ marginBottom: 8 }}>
         {multi
-          ? "Кликните строку-шапку для этого файла. Удаление/переименование колонок — в разделах ниже (по объединённой таблице)."
-          : "Кликните строку-шапку. 🗑 сверху колонки удаляет её, двойной клик по названию — переименовать. Слева у строк данных 🗑 удаляет строку. Правки видны во всех режимах."}
+          ? t("Кликните строку-шапку для этого файла. Удаление/переименование колонок — в разделах ниже (по объединённой таблице).")
+          : t("Кликните строку-шапку. 🗑 сверху колонки удаляет её, двойной клик по названию — переименовать. Слева у строк данных 🗑 удаляет строку. Правки видны во всех режимах.")}
       </div>
 
       <div className="grid-wrap">
@@ -57,7 +59,7 @@ export default function HeaderPicker({
                 return (
                   <td key={j} style={{ textAlign: "center", padding: "2px" }}>
                     {nm !== "" && (
-                      <button className="trash mini" title={cd ? "вернуть колонку" : "удалить колонку"}
+                      <button className="trash mini" title={cd ? t("вернуть колонку") : t("удалить колонку")}
                         onClick={() => onDropColumn(nm)}
                         style={cd ? { color: "var(--accent)" } : undefined}>
                         {cd ? "↩" : "🗑"}
@@ -80,7 +82,7 @@ export default function HeaderPicker({
                   <td className="rownum" onClick={(e) => e.stopPropagation()}>
                     <div className="rownum-cell">
                       {isDataRow && !multi && (
-                        <button className="trash mini" title={rowDropped ? "вернуть строку" : "удалить строку"}
+                        <button className="trash mini" title={rowDropped ? t("вернуть строку") : t("удалить строку")}
                           onClick={() => onDropRow(dataIdx)}
                           style={rowDropped ? { color: "var(--accent)" } : undefined}>
                           {rowDropped ? "↩" : "🗑"}
@@ -104,7 +106,7 @@ export default function HeaderPicker({
                                   if (e.key === "Escape") setEditCol(null);
                                 }} />
                             ) : (
-                              <span className="hdr-name" title={multi ? "" : "двойной клик — переименовать"}
+                              <span className="hdr-name" title={multi ? "" : t("двойной клик — переименовать")}
                                 style={cd ? { textDecoration: "line-through", opacity: 0.6 } : undefined}
                                 onDoubleClick={() => !multi && !cd && curName(j) && setEditCol(j)}>
                                 {curName(j) || "·"}
@@ -126,9 +128,9 @@ export default function HeaderPicker({
         </table>
       </div>
       <div className="small muted" style={{ marginTop: 6 }}>
-        Выбрана строка #{headerRow} как шапка.
+        {t("Выбрана строка #{n} как шапка.", { n: headerRow })}
         {(dropColumns?.length || dropRows?.length)
-          ? ` · правок: колонок ${dropColumns.length}, строк ${dropRows.length}` : ""}
+          ? t(" · правок: колонок {c}, строк {r}", { c: dropColumns.length, r: dropRows.length }) : ""}
       </div>
     </div>
   );

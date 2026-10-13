@@ -1,6 +1,8 @@
 import React, { useRef, useState } from "react";
+import { useT } from "../i18n";
 
 export default function Uploader({ onFile, busy, filename, addMode, disabled }) {
+  const t = useT();
   const inputRef = useRef(null);
   const [drag, setDrag] = useState(false);
 
@@ -10,7 +12,7 @@ export default function Uploader({ onFile, busy, filename, addMode, disabled }) 
 
   return (
     <div className="section">
-      {!addMode && <div className="section-title">1 · Файл данных</div>}
+      {!addMode && <div className="section-title">{t("1 · Файл данных")}</div>}
       <div
         className={"dropzone" + (drag ? " drag" : "") + (disabled ? " disabled" : "") + (addMode ? " compact" : "")}
         onClick={() => !disabled && inputRef.current?.click()}
@@ -23,15 +25,15 @@ export default function Uploader({ onFile, busy, filename, addMode, disabled }) 
         }}
       >
         {busy ? (
-          <><span className="spinner" /> &nbsp;Загрузка…</>
+          <><span className="spinner" /> &nbsp;{t("Загрузка…")}</>
         ) : disabled ? (
-          <span className="small">Достигнут максимум (5 файлов)</span>
+          <span className="small">{t("Достигнут максимум (5 файлов)")}</span>
         ) : addMode ? (
-          <><strong>＋ Добавить файл</strong><br /><span className="small">для сравнения (до 5)</span></>
+          <><strong>{t("＋ Добавить файл")}</strong><br /><span className="small">{t("для сравнения (до 5)")}</span></>
         ) : filename ? (
-          <><strong>{filename}</strong><br /><span className="small">Нажмите, чтобы заменить</span></>
+          <><strong>{filename}</strong><br /><span className="small">{t("Нажмите, чтобы заменить")}</span></>
         ) : (
-          <><strong>Перетащите CSV / Excel</strong><br /><span className="small">или нажмите для выбора</span></>
+          <><strong>{t("Перетащите CSV / Excel")}</strong><br /><span className="small">{t("или нажмите для выбора")}</span></>
         )}
         <input
           ref={inputRef}

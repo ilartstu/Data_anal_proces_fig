@@ -1,4 +1,5 @@
 import React from "react";
+import { useT, useNum } from "../i18n";
 
 function fmt(v) {
   if (v === null || v === undefined) return "—";
@@ -10,33 +11,35 @@ function fmt(v) {
 }
 
 export default function StatsTable({ data, styles, totalRows, onExportStats, busyExport }) {
+  const t = useT();
+  const nf = useNum();
   if (!data?.series?.length) return null;
   return (
     <div className="card" style={{ overflowX: "auto" }}>
       <div className="inline" style={{ justifyContent: "space-between", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
         <span className="small muted">
-          Всего строк: <b style={{ color: "var(--text)" }}>{(totalRows ?? 0).toLocaleString("ru")}</b>
-          {" · "}колонок: <b style={{ color: "var(--text)" }}>{data.series.length}</b>
+          {t("Всего строк:")} <b style={{ color: "var(--text)" }}>{nf(totalRows ?? 0)}</b>
+          {" · "}{t("колонок:")} <b style={{ color: "var(--text)" }}>{data.series.length}</b>
         </span>
         {onExportStats && (
           <div className="btn-row">
-            <button className="ghost small" onClick={() => onExportStats("csv")} disabled={busyExport}>⬇ Статистика CSV</button>
-            <button className="ghost small" onClick={() => onExportStats("xlsx")} disabled={busyExport}>⬇ Статистика Excel</button>
+            <button className="ghost small" onClick={() => onExportStats("csv")} disabled={busyExport}>{t("⬇ Статистика CSV")}</button>
+            <button className="ghost small" onClick={() => onExportStats("xlsx")} disabled={busyExport}>{t("⬇ Статистика Excel")}</button>
           </div>
         )}
       </div>
       <table className="stats">
         <thead>
           <tr>
-            <th>Колонка</th>
-            <th>Точек</th>
+            <th>{t("Колонка")}</th>
+            <th>{t("Точек")}</th>
             <th>NaN</th>
-            <th>Нулей</th>
-            <th>Аномалий</th>
+            <th>{t("Нулей")}</th>
+            <th>{t("Аномалий")}</th>
             <th>min</th>
             <th>max</th>
-            <th>среднее</th>
-            <th>медиана</th>
+            <th>{t("среднее")}</th>
+            <th>{t("медиана")}</th>
             <th>σ</th>
           </tr>
         </thead>

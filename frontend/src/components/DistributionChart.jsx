@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import createPlotlyComponent from "react-plotly.js/factory";
 import Plotly from "plotly.js-dist-min";
+import { useT } from "../i18n";
 
 const Plot = createPlotlyComponent(Plotly);
 
@@ -38,6 +39,7 @@ function finiteSorted(arr) {
 }
 
 export default function DistributionChart({ data, styles, distType, bins, onGraphDiv }) {
+  const t = useT();
   const { traces, layout } = useMemo(() => {
     let traces = [];
 
@@ -65,7 +67,7 @@ export default function DistributionChart({ data, styles, distType, bins, onGrap
         const sd = Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / n);
         const xmin = th[0], xmax = th[n - 1];
         traces.push({ x: [xmin, xmax], y: [mean + sd * xmin, mean + sd * xmax],
-          name: `${s.name} · норм.`, type: "scatter", mode: "lines",
+          name: `${s.name} · ${t("норм.")}`, type: "scatter", mode: "lines",
           line: { color, width: 1, dash: "dash" }, showlegend: false, hoverinfo: "skip" });
       });
     } else {
@@ -84,12 +86,12 @@ export default function DistributionChart({ data, styles, distType, bins, onGrap
       });
     }
 
-    const xTitle = distType === "histogram" ? "Значение"
-      : distType === "ecdf" ? "Значение"
-        : distType === "qq" ? "Теоретические квантили (норм.)" : "";
-    const yTitle = distType === "histogram" ? "Частота"
+    const xTitle = distType === "histogram" ? t("Значение")
+      : distType === "ecdf" ? t("Значение")
+        : distType === "qq" ? t("Теоретические квантили (норм.)") : "";
+    const yTitle = distType === "histogram" ? t("Частота")
       : distType === "ecdf" ? "F(x)"
-        : distType === "qq" ? "Выборочные квантили" : "Значение";
+        : distType === "qq" ? t("Выборочные квантили") : t("Значение");
 
     const layout = {
       margin: { l: 60, r: 18, t: 10, b: 44 },
@@ -104,7 +106,7 @@ export default function DistributionChart({ data, styles, distType, bins, onGrap
       font: { family: "-apple-system, Segoe UI, Roboto, sans-serif", size: 12, color: "#1c2530" },
     };
     return { traces, layout };
-  }, [data, styles, distType, bins]);
+  }, [data, styles, distType, bins, t]);
 
   return (
     <Plot
